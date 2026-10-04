@@ -8232,92 +8232,6 @@ body.theme-light .samali-theme-btn:hover{background:#eef2f7;color:#0f172a;border
 @media (max-width:768px){ .schedule-page-header{align-items:flex-start}.schedule-calendar-toolbar{gap:10px}.schedule-calendar-period{flex-direction:column;align-items:flex-end;gap:2px}.schedule-day{min-height:95px;padding:7px} }
 @media (max-width:640px){ .schedule-page-header{flex-direction:column;align-items:stretch;gap:10px;padding-bottom:12px}.schedule-add-button{width:100%}.schedule-calendar-toolbar{flex-wrap:wrap;justify-content:space-between;padding:9px 10px}.schedule-calendar-navigation{gap:4px}.schedule-calendar{min-width:630px}.schedule-calendar-wrap{overflow-x:auto}.schedule-calendar-footer{gap:7px 14px} }
 
-/* =========================================================
-   TEMA DINAMIS — HEADER KALENDER JADWAL KEGIATAN
-   Aplikasi memakai body.theme-light untuk mode terang.
-   Selektor .dark/.dark-mode juga didukung agar komponen tetap aman
-   jika sistem tema diubah di kemudian hari.
-   ========================================================= */
-.calendar-header-container {
-    background-color:#1e293b !important;
-    border-color:#334155 !important;
-}
-.calendar-title {
-    color:#ffffff !important;
-}
-.calendar-agenda-count {
-    color:#94a3b8 !important;
-}
-.calendar-header-container .schedule-nav-button {
-    background-color:#182234 !important;
-    border-color:#475569 !important;
-    color:#ffffff !important;
-}
-.calendar-header-container .schedule-nav-button:hover {
-    background-color:#334155 !important;
-    border-color:#64748b !important;
-    color:#ffffff !important;
-}
-
-body.theme-light .calendar-header-container,
-body:not(.theme-light) .calendar-header-container.light-preview {
-    background-color:#f1f5f9 !important;
-    border-color:#cbd5e1 !important;
-}
-body.theme-light .calendar-title,
-body:not(.theme-light) .calendar-title.light-preview {
-    color:#0f172a !important;
-}
-body.theme-light .calendar-agenda-count,
-body:not(.theme-light) .calendar-agenda-count.light-preview {
-    color:#475569 !important;
-}
-body.theme-light .calendar-header-container .schedule-nav-button,
-body:not(.theme-light) .calendar-header-container.light-preview .schedule-nav-button {
-    background-color:#ffffff !important;
-    border-color:#cbd5e1 !important;
-    color:#334155 !important;
-}
-body.theme-light .calendar-header-container .schedule-nav-button:hover,
-body:not(.theme-light) .calendar-header-container.light-preview .schedule-nav-button:hover {
-    background-color:#e2e8f0 !important;
-    border-color:#94a3b8 !important;
-    color:#0f172a !important;
-}
-
-/* Dukungan bila tema menggunakan class .dark atau .dark-mode. */
-.dark .calendar-header-container,
-.dark-mode .calendar-header-container {
-    background-color:#1e293b !important;
-    border-color:#334155 !important;
-}
-.dark .calendar-title,
-.dark-mode .calendar-title {
-    color:#ffffff !important;
-}
-.dark .calendar-agenda-count,
-.dark-mode .calendar-agenda-count {
-    color:#94a3b8 !important;
-}
-.dark .calendar-header-container .schedule-nav-button,
-.dark-mode .calendar-header-container .schedule-nav-button {
-    background-color:#182234 !important;
-    border-color:#475569 !important;
-    color:#ffffff !important;
-}
-.dark .calendar-header-container .schedule-nav-button:hover,
-.dark-mode .calendar-header-container .schedule-nav-button:hover {
-    background-color:#334155 !important;
-    border-color:#64748b !important;
-    color:#ffffff !important;
-}
-
-/* Mode terang jika class tema berada pada html, bukan body. */
-html:not(.dark) body.theme-light .calendar-header-container,
-html:not(.dark-mode) body.theme-light .calendar-header-container {
-    background-color:#f1f5f9 !important;
-}
-
 </style>
 
 <style id="pdf-theme-modal-styles">
@@ -8461,6 +8375,51 @@ html.dark .samali-delete-cancel,body.dark .samali-delete-cancel,body.dark-mode .
 html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body.dark-mode .samali-delete-cancel:hover{background:#475569;color:#fff}
 .samali-delete-fade{opacity:0!important;transform:translateY(-6px) scale(.98)!important;transition:opacity .24s ease-out,transform .24s ease-out!important;pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+
+<style id="samali-theme-calendar-fix">
+/* ===== SINKRONISASI TEMA + HEADER KALENDER ===== */
+body:not(.dark) .calendar-header-container {
+    background:#f1f5f9 !important;
+    border-bottom-color:#cbd5e1 !important;
+}
+body:not(.dark) .calendar-header-container .calendar-title {
+    color:#0f172a !important;
+}
+body:not(.dark) .calendar-header-container .calendar-agenda-count {
+    color:#475569 !important;
+}
+body:not(.dark) .calendar-header-container .schedule-nav-button {
+    background:#ffffff !important;
+    border-color:#cbd5e1 !important;
+    color:#334155 !important;
+}
+body:not(.dark) .calendar-header-container .schedule-nav-button:hover {
+    background:#e2e8f0 !important;
+    border-color:#94a3b8 !important;
+    color:#0f172a !important;
+}
+
+body.dark .calendar-header-container {
+    background:#1e293b !important;
+    border-bottom-color:#334155 !important;
+}
+body.dark .calendar-header-container .calendar-title {
+    color:#ffffff !important;
+}
+body.dark .calendar-header-container .calendar-agenda-count {
+    color:#cbd5e1 !important;
+}
+body.dark .calendar-header-container .schedule-nav-button {
+    background:#182234 !important;
+    border-color:#475569 !important;
+    color:#cbd5e1 !important;
+}
+body.dark .calendar-header-container .schedule-nav-button:hover {
+    background:#334155 !important;
+    border-color:#64748b !important;
+    color:#ffffff !important;
+}
 </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans h-screen w-screen overflow-hidden flex flex-col">
@@ -8676,18 +8635,23 @@ html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body
         lucide.createIcons();
 
         function applyTheme(theme) {
-            const isLight = theme === 'light';
-            document.body.classList.toggle('theme-light', isLight);
-            localStorage.setItem('samali_theme', isLight ? 'light' : 'dark');
+            const isDark = theme === 'dark';
+            document.body.classList.toggle('dark', isDark);
+            document.body.classList.toggle('theme-light', !isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('samali_theme', isDark ? 'dark' : 'light');
             const btn = document.getElementById('themeBtn');
             if (btn) {
-                btn.innerHTML = `<i data-lucide="${isLight ? 'sun' : 'moon'}"></i>`;
-                btn.title = isLight ? 'Mode terang — klik untuk mode gelap' : 'Mode gelap — klik untuk mode terang';
+                btn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}"></i>`;
+                btn.title = isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap';
                 if (window.lucide) window.lucide.createIcons();
             }
         }
-        function toggleTheme() { applyTheme(document.body.classList.contains('theme-light') ? 'dark' : 'light'); }
-        applyTheme(localStorage.getItem('samali_theme') || 'dark');
+        function toggleTheme() {
+            const isDark = document.body.classList.contains('dark');
+            applyTheme(isDark ? 'light' : 'dark');
+        }
+        applyTheme(localStorage.getItem('theme') || localStorage.getItem('samali_theme') || 'dark');
 
         let isSidebarCollapsed = false;
         let isModalAnimating = false;
