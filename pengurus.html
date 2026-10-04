@@ -7,6 +7,70 @@
 <title>Samali - Portal Pengurus Kelompok</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="logo.png">
+<script id="samali-navigation-guard">
+/* Samali navigation guard: internal portal links must always be standalone filenames. */
+(function () {
+    'use strict';
+    const SAMALI_PAGES = new Set(['index.html', 'pengurus.html', 'jamaah.html']);
+
+    window.samaliNavigate = function (page) {
+        const target = String(page || '').trim();
+        if (SAMALI_PAGES.has(target)) window.location.href = target;
+    };
+
+    function normalizeSamaliHref(href) {
+        if (!href) return href;
+        const value = String(href).trim();
+
+        // Exact internal filename is already correct.
+        if (SAMALI_PAGES.has(value)) return value;
+
+        // Repair the reported accidental concatenation, e.g.
+        // jamaah.htmlhttps://.../index.html -> index.html
+        const concatenated = value.match(/(?:^|\/)(index|pengurus|jamaah)\.htmlhttps?:\/\/[^\s#]+\/((?:index|pengurus|jamaah))\.html(?:[?#].*)?$/i);
+        if (concatenated) return concatenated[2].toLowerCase() + '.html';
+
+        // Also repair a filename followed by any absolute URL.
+        const filenameThenUrl = value.match(/^(index|pengurus|jamaah)\.htmlhttps?:\/\//i);
+        if (filenameThenUrl) return filenameThenUrl[1].toLowerCase() + '.html';
+
+        // Convert same-origin absolute links to standalone filenames.
+        try {
+            const url = new URL(value, window.location.href);
+            if (url.origin === window.location.origin) {
+                const file = url.pathname.split('/').pop().toLowerCase();
+                if (SAMALI_PAGES.has(file)) return file;
+            }
+        } catch (_) {}
+
+        return value;
+    }
+
+    function normalizeAnchors(root) {
+        (root || document).querySelectorAll('a[href]').forEach(function (a) {
+            const before = a.getAttribute('href');
+            const after = normalizeSamaliHref(before);
+            if (after !== before) a.setAttribute('href', after);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { normalizeAnchors(document); });
+    } else {
+        normalizeAnchors(document);
+    }
+
+    // Covers links inserted later by the application's JavaScript.
+    const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+            mutation.addedNodes.forEach(function (node) {
+                if (node.nodeType === 1) normalizeAnchors(node);
+            });
+        });
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+})();
+</script>
 <style>
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
