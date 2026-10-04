@@ -5,72 +5,6 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Sistem Manajemen Sensus Jamaah Samali</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="logo.png">
-<script id="samali-navigation-guard">
-/* Samali navigation guard: internal portal links must always be standalone filenames. */
-(function () {
-    'use strict';
-    const SAMALI_PAGES = new Set(['index.html', 'pengurus.html', 'jamaah.html']);
-
-    window.samaliNavigate = function (page) {
-        const target = String(page || '').trim();
-        if (SAMALI_PAGES.has(target)) window.location.href = target;
-    };
-
-    function normalizeSamaliHref(href) {
-        if (!href) return href;
-        const value = String(href).trim();
-
-        // Exact internal filename is already correct.
-        if (SAMALI_PAGES.has(value)) return value;
-
-        // Repair the reported accidental concatenation, e.g.
-        // jamaah.htmlhttps://.../index.html -> index.html
-        const concatenated = value.match(/(?:^|\/)(index|pengurus|jamaah)\.htmlhttps?:\/\/[^\s#]+\/((?:index|pengurus|jamaah))\.html(?:[?#].*)?$/i);
-        if (concatenated) return concatenated[2].toLowerCase() + '.html';
-
-        // Also repair a filename followed by any absolute URL.
-        const filenameThenUrl = value.match(/^(index|pengurus|jamaah)\.htmlhttps?:\/\//i);
-        if (filenameThenUrl) return filenameThenUrl[1].toLowerCase() + '.html';
-
-        // Convert same-origin absolute links to standalone filenames.
-        try {
-            const url = new URL(value, window.location.href);
-            if (url.origin === window.location.origin) {
-                const file = url.pathname.split('/').pop().toLowerCase();
-                if (SAMALI_PAGES.has(file)) return file;
-            }
-        } catch (_) {}
-
-        return value;
-    }
-
-    function normalizeAnchors(root) {
-        (root || document).querySelectorAll('a[href]').forEach(function (a) {
-            const before = a.getAttribute('href');
-            const after = normalizeSamaliHref(before);
-            if (after !== before) a.setAttribute('href', after);
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { normalizeAnchors(document); });
-    } else {
-        normalizeAnchors(document);
-    }
-
-    // Covers links inserted later by the application's JavaScript.
-    const observer = new MutationObserver(function (mutations) {
-        mutations.forEach(function (mutation) {
-            mutation.addedNodes.forEach(function (node) {
-                if (node.nodeType === 1) normalizeAnchors(node);
-            });
-        });
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-})();
-</script>
 <!-- Lucide Icons CDN -->
 <script src="https://unpkg.com/lucide@latest"></script>
 <!-- Google Fonts Inter -->
@@ -8298,6 +8232,92 @@ body.theme-light .samali-theme-btn:hover{background:#eef2f7;color:#0f172a;border
 @media (max-width:768px){ .schedule-page-header{align-items:flex-start}.schedule-calendar-toolbar{gap:10px}.schedule-calendar-period{flex-direction:column;align-items:flex-end;gap:2px}.schedule-day{min-height:95px;padding:7px} }
 @media (max-width:640px){ .schedule-page-header{flex-direction:column;align-items:stretch;gap:10px;padding-bottom:12px}.schedule-add-button{width:100%}.schedule-calendar-toolbar{flex-wrap:wrap;justify-content:space-between;padding:9px 10px}.schedule-calendar-navigation{gap:4px}.schedule-calendar{min-width:630px}.schedule-calendar-wrap{overflow-x:auto}.schedule-calendar-footer{gap:7px 14px} }
 
+/* =========================================================
+   TEMA DINAMIS — HEADER KALENDER JADWAL KEGIATAN
+   Aplikasi memakai body.theme-light untuk mode terang.
+   Selektor .dark/.dark-mode juga didukung agar komponen tetap aman
+   jika sistem tema diubah di kemudian hari.
+   ========================================================= */
+.calendar-header-container {
+    background-color:#1e293b !important;
+    border-color:#334155 !important;
+}
+.calendar-title {
+    color:#ffffff !important;
+}
+.calendar-agenda-count {
+    color:#94a3b8 !important;
+}
+.calendar-header-container .schedule-nav-button {
+    background-color:#182234 !important;
+    border-color:#475569 !important;
+    color:#ffffff !important;
+}
+.calendar-header-container .schedule-nav-button:hover {
+    background-color:#334155 !important;
+    border-color:#64748b !important;
+    color:#ffffff !important;
+}
+
+body.theme-light .calendar-header-container,
+body:not(.theme-light) .calendar-header-container.light-preview {
+    background-color:#f1f5f9 !important;
+    border-color:#cbd5e1 !important;
+}
+body.theme-light .calendar-title,
+body:not(.theme-light) .calendar-title.light-preview {
+    color:#0f172a !important;
+}
+body.theme-light .calendar-agenda-count,
+body:not(.theme-light) .calendar-agenda-count.light-preview {
+    color:#475569 !important;
+}
+body.theme-light .calendar-header-container .schedule-nav-button,
+body:not(.theme-light) .calendar-header-container.light-preview .schedule-nav-button {
+    background-color:#ffffff !important;
+    border-color:#cbd5e1 !important;
+    color:#334155 !important;
+}
+body.theme-light .calendar-header-container .schedule-nav-button:hover,
+body:not(.theme-light) .calendar-header-container.light-preview .schedule-nav-button:hover {
+    background-color:#e2e8f0 !important;
+    border-color:#94a3b8 !important;
+    color:#0f172a !important;
+}
+
+/* Dukungan bila tema menggunakan class .dark atau .dark-mode. */
+.dark .calendar-header-container,
+.dark-mode .calendar-header-container {
+    background-color:#1e293b !important;
+    border-color:#334155 !important;
+}
+.dark .calendar-title,
+.dark-mode .calendar-title {
+    color:#ffffff !important;
+}
+.dark .calendar-agenda-count,
+.dark-mode .calendar-agenda-count {
+    color:#94a3b8 !important;
+}
+.dark .calendar-header-container .schedule-nav-button,
+.dark-mode .calendar-header-container .schedule-nav-button {
+    background-color:#182234 !important;
+    border-color:#475569 !important;
+    color:#ffffff !important;
+}
+.dark .calendar-header-container .schedule-nav-button:hover,
+.dark-mode .calendar-header-container .schedule-nav-button:hover {
+    background-color:#334155 !important;
+    border-color:#64748b !important;
+    color:#ffffff !important;
+}
+
+/* Mode terang jika class tema berada pada html, bukan body. */
+html:not(.dark) body.theme-light .calendar-header-container,
+html:not(.dark-mode) body.theme-light .calendar-header-container {
+    background-color:#f1f5f9 !important;
+}
+
 </style>
 
 <style id="pdf-theme-modal-styles">
@@ -8661,8 +8681,8 @@ html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body
             localStorage.setItem('samali_theme', isLight ? 'light' : 'dark');
             const btn = document.getElementById('themeBtn');
             if (btn) {
-                btn.innerHTML = `<i data-lucide="${isLight ? 'moon' : 'sun'}"></i>`;
-                btn.title = isLight ? 'Beralih ke mode gelap' : 'Beralih ke mode terang';
+                btn.innerHTML = `<i data-lucide="${isLight ? 'sun' : 'moon'}"></i>`;
+                btn.title = isLight ? 'Mode terang — klik untuk mode gelap' : 'Mode gelap — klik untuk mode terang';
                 if (window.lucide) window.lucide.createIcons();
             }
         }
@@ -10556,7 +10576,7 @@ html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body
                     </div>
 
                     <div class="schedule-calendar-card">
-                        <div class="schedule-calendar-toolbar">
+                        <div class="schedule-calendar-toolbar calendar-header-container">
                             <div class="schedule-calendar-navigation">
                                 <button onclick="changeCalendarMonth(-1)" class="schedule-nav-button schedule-nav-icon" title="Bulan sebelumnya">
                                     <i data-lucide="chevron-left" class="w-4 h-4"></i>
@@ -10567,8 +10587,8 @@ html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body
                                 </button>
                             </div>
                             <div class="schedule-calendar-period">
-                                <h4 id="scheduleMonthLabel" class="text-base font-bold text-white capitalize"></h4>
-                                <p id="scheduleMonthCount" class="text-[11px] text-slate-500"></p>
+                                <h4 id="scheduleMonthLabel" class="calendar-title text-base font-bold capitalize"></h4>
+                                <p id="scheduleMonthCount" class="calendar-agenda-count text-[11px]"></p>
                             </div>
                         </div>
 
