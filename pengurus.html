@@ -4,7 +4,10 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Samali - Portal Pengurus Kelompok</title>
+<title>Samali</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="manifest" href="manifest.json">
 <style>
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -7703,14 +7706,26 @@ html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body
 .samali-delete-fade{opacity:0!important;transform:translateY(-6px) scale(.98)!important;transition:opacity .24s ease-out,transform .24s ease-out!important;pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
 </style>
-<style>
-/* FINISHING TOUCH — FLOATING THEME TOGGLE MODE TERANG */
-body:not(.dark):not(.dark-mode) #theme-toggle,
-body:not(.dark):not(.dark-mode) .fixed.bottom-4.right-4 button,
-body:not(.dark):not(.dark-mode) [class*="bottom-"][class*="right-"] button {
+<style id="samali-final-theme-fixes">
+/* FINAL THEME FINISHING FIXES — do not alter existing functionality */
+
+/* Dashboard theme buttons: dark in light mode */
+body:not(.dark):not(.dark-mode) .theme-toggle-btn,
+body:not(.dark):not(.dark-mode) #theme-toggle {
     background-color: #0f172a !important;
     color: #ffffff !important;
     border: 1px solid #1e293b !important;
+}
+
+/* Calendar header in light mode */
+body:not(.dark):not(.dark-mode) .calendar-header,
+body:not(.dark):not(.dark-mode) [class*="header-calendar"] {
+    background-color: #f8fafc !important;
+}
+body:not(.dark):not(.dark-mode) #calendar-month-year,
+body:not(.dark):not(.dark-mode) .calendar-header h3,
+body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
+    color: #0f172a !important;
 }
 </style>
 </head>
