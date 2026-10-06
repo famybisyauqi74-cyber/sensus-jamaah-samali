@@ -4,10 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Samali</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="logo.png">
-<meta name="theme-color" content="#0f172a">
+<title>Samali - Portal Pengurus Kelompok</title>
 <style>
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -7705,6 +7702,16 @@ html.dark .samali-delete-cancel,body.dark .samali-delete-cancel,body.dark-mode .
 html.dark .samali-delete-cancel:hover,body.dark .samali-delete-cancel:hover,body.dark-mode .samali-delete-cancel:hover{background:#475569;color:#fff}
 .samali-delete-fade{opacity:0!important;transform:translateY(-6px) scale(.98)!important;transition:opacity .24s ease-out,transform .24s ease-out!important;pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+<style>
+/* FINISHING TOUCH — FLOATING THEME TOGGLE MODE TERANG */
+body:not(.dark):not(.dark-mode) #theme-toggle,
+body:not(.dark):not(.dark-mode) .fixed.bottom-4.right-4 button,
+body:not(.dark):not(.dark-mode) [class*="bottom-"][class*="right-"] button {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border: 1px solid #1e293b !important;
+}
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
