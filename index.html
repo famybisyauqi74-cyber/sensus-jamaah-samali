@@ -10285,8 +10285,24 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             // Header akun ditampilkan segera, tidak menunggu data Sensus.
             updateProfileHeader();
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('mainAppLayout').classList.remove('hidden');
+
+            // Pindahkan tampilan dari LOGIN ke DASHBOARD secara eksplisit.
+            // Gunakan inline display agar tidak tertimpa aturan CSS .hidden lain.
+            const authOverlay = document.getElementById('authOverlay');
+            const mainAppLayout = document.getElementById('mainAppLayout');
+
+            if (authOverlay) {
+                authOverlay.classList.add('hidden');
+                authOverlay.style.display = 'none';
+                authOverlay.setAttribute('aria-hidden', 'true');
+            }
+
+            if (mainAppLayout) {
+                mainAppLayout.classList.remove('hidden');
+                mainAppLayout.style.display = 'flex';
+                mainAppLayout.removeAttribute('aria-hidden');
+            }
+
             lucide.createIcons();
 
             // Jangan blokir masuk hanya untuk health check / Spreadsheet. Jalankan di background.
@@ -10315,8 +10331,20 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             localStorage.removeItem('samali_profile_first_name');
             localStorage.removeItem('samali_profile_last_name');
             
-            document.getElementById('mainAppLayout').classList.add('hidden');
-            document.getElementById('authOverlay').classList.remove('hidden');
+            const mainAppLayout = document.getElementById('mainAppLayout');
+            const authOverlay = document.getElementById('authOverlay');
+
+            if (mainAppLayout) {
+                mainAppLayout.classList.add('hidden');
+                mainAppLayout.style.display = 'none';
+            }
+
+            if (authOverlay) {
+                authOverlay.classList.remove('hidden');
+                authOverlay.style.display = '';
+                authOverlay.removeAttribute('aria-hidden');
+            }
+
             document.getElementById('userEmailInput').value = '';
             document.getElementById('userPasswordInput').value = '';
             hideAlertBox();
