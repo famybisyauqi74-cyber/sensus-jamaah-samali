@@ -7922,8 +7922,8 @@ async function loadAll(isInitial=false){
   loadTodaySchedules();
   renderSensus();renderAgeSummary();
 }
-let pengurusLiveTimer=null;
-function startPengurusLiveSync(){if(pengurusLiveTimer)clearInterval(pengurusLiveTimer);pengurusLiveTimer=setInterval(()=>{if(!document.hidden)loadAll(false)},30000)}
+// Sinkronisasi Pengurus tidak melakukan polling server berkala.
+// Perubahan dari Admin masuk langsung melalui localStorage 'storage' event di bawah.
 
 let samaliJsPdfPromise=null;
 function loadSamaliJsPdf(){if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);if(samaliJsPdfPromise)return samaliJsPdfPromise;samaliJsPdfPromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject();s.onerror=reject;document.head.appendChild(s)});return samaliJsPdfPromise}
@@ -8049,7 +8049,9 @@ document.addEventListener('DOMContentLoaded', function(){
   renderPortalOnlineTables();
   lucide.createIcons();
 
-  loadAll(true).finally(()=>startPengurusLiveSync());
+  // Server hanya dimuat sekali saat halaman Pengurus dibuka.
+  // Setelah itu perubahan dari Admin disinkronkan langsung melalui storage event.
+  loadAll(true);
 });
 
 window.addEventListener('storage', function(event){
