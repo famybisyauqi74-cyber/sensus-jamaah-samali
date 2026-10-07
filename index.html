@@ -10834,7 +10834,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             sendMutationInBackground({ action:'hapusSensus', no:String(noJamaah) }, result => {
                 if (!result || result.status !== 'success') console.warn('Server hapus Sensus mengembalikan:', result);
-                setTimeout(() => loadSensusJamaahFromServer(true).catch(()=>{}), 700);
             });
         }
 
@@ -10873,8 +10872,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             sendMutationInBackground(payload, result => {
                 if (!result || result.status !== 'success') console.warn('Server simpan Sensus mengembalikan:', result);
-                setTimeout(() => loadSensusJamaahFromServer(true).catch(()=>{}), 900);
-            });
+                });
         }
 
         // ==================== PENCARIAN & FILTER SENSUS ====================
@@ -11342,16 +11340,17 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             scheduleEvents.sort((a,b) => `${a.date || ''}T${a.time || '00:00'}`.localeCompare(`${b.date || ''}T${b.time || '00:00'}`));
             cacheScheduleEvents();
             currentCalendarDate = new Date(`${date}T00:00:00`); closeFullScreenModal(); renderScheduleCalendar();
-            try {
-                const result = await sendScheduleMutation({action:'saveJadwal', id:clientId, title, date, time, detail});
-                if (!result || result.status !== 'success') throw new Error(result?.message || 'Jadwal belum tersimpan.');
-                await loadScheduleEventsFromServer();
-                localStorage.setItem(SAMALI_KEGIATAN_KEY, JSON.stringify(scheduleEvents));
-                showToast(editId !== null ? 'Jadwal berhasil diperbarui.' : 'Jadwal berhasil ditambahkan.', 'success');
-            } catch (error) {
-                console.warn('Penyimpanan jadwal tertunda:', error);
-                showToast('Jadwal sedang disinkronkan.', 'success');
-            }
+            // UI sudah diperbarui dan disimpan ke localStorage di atas.
+            // Sinkronisasi server berjalan di belakang agar tidak menghambat UI.
+            sendScheduleInBackground(
+                {action:'saveJadwal', id:clientId, title, date, time, detail},
+                result => {
+                    if (!result || result.status !== 'success') {
+                        console.warn('Sinkronisasi simpan Jadwal mengembalikan:', result);
+                    }
+                }
+            );
+            showToast(editId !== null ? 'Jadwal berhasil diperbarui.' : 'Jadwal berhasil ditambahkan.', 'success');
         }
 
 
@@ -11453,16 +11452,17 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             cacheScheduleEvents();
             closeFullScreenModal();
             renderScheduleCalendar();
-            try {
-                const result = await sendScheduleMutation({action:'deleteJadwal', id:String(id)});
-                if (!result || result.status !== 'success') throw new Error(result?.message || 'Jadwal belum terhapus.');
-                await loadScheduleEventsFromServer();
-                localStorage.setItem(SAMALI_KEGIATAN_KEY, JSON.stringify(scheduleEvents));
-                showToast('Jadwal berhasil dihapus.', 'success');
-            } catch (error) {
-                console.warn('Penghapusan jadwal tertunda:', error);
-                showToast('Perubahan sedang disinkronkan.', 'success');
-            }
+            // UI sudah diperbarui dan disimpan ke localStorage di atas.
+            // Penghapusan server berjalan di belakang tanpa reload / fetch ulang.
+            sendScheduleInBackground(
+                {action:'deleteJadwal', id:String(id)},
+                result => {
+                    if (!result || result.status !== 'success') {
+                        console.warn('Sinkronisasi hapus Jadwal mengembalikan:', result);
+                    }
+                }
+            );
+            showToast('Jadwal berhasil dihapus.', 'success');
         }
 
 
