@@ -2,6 +2,22 @@
 
 <html lang="id">
 <head>
+<!-- Supabase Online Database -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   SUPABASE CONFIGURATION - ISI 2 NILAI INI
+   Jangan gunakan service_role key di browser.
+========================================================= */
+const SUPABASE_URL = 'https://supabase.com/dashboard/project/eopktyqzztmmvimyedmh/settings/api-keys';
+const SUPABASE_ANON_KEY = 'sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const JADWAL_TABLE = 'kegiatan';
+const SENSUS_TABLE = 'sensus_jamaah';
+const SUPABASE_READY = !SUPABASE_URL.startsWith('ISI_') && !SUPABASE_ANON_KEY.startsWith('ISI_');
+</script>
+
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Portal Samali</title>
@@ -8037,7 +8053,6 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
 
 const scriptURL =
   'https://script.google.com/macros/s/AKfycbz9SpyhY97lSvwFlkk4Hk_5cs1M6FF_AaiJXQjV0RHAF-Lz7dpvE5OI6xinpS5f4FPm/exec';
-const SAMALI_KEGIATAN_KEY = 'samali_kegiatan';
 
 function publicJsonp(payload, timeoutMs = 15000){
   return new Promise((resolve,reject)=>{
@@ -8234,7 +8249,7 @@ function showPage(page){
   if(footer) footer.classList.toggle('hidden',!isPublic);
   try{history.replaceState(null,'','#'+page);}catch(e){}
   if(page==='beranda'){renderHomeName?.();}
-  if(page==='jadwal'){try{publicScheduleEvents=(JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')||[]).map(publicNormalizeScheduleEvent).filter(item=>item.date);}catch(e){publicScheduleEvents=[];} renderPublicCalendar?.();}
+  if(page==='jadwal'){loadJadwal();}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -9446,86 +9461,49 @@ function getTodayKey(){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function loadTodaySchedules(){
-  try {
-    const agendaContainer = document.getElementById('portalScheduleTable');
-    const status = document.getElementById('publicScheduleStatus');
-    if (!agendaContainer) return [];
-
-    let allEvents = [];
-    try {
-      const rawData = localStorage.getItem('samali_kegiatan');
-      const parsed = rawData ? JSON.parse(rawData) : [];
-      allEvents = Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      allEvents = [];
-    }
-
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const part = type => parts.find(item => item.type === type)?.value || '';
-    const todayString = `${part('year')}-${part('month')}-${part('day')}`;
-
-    const todayEvents = allEvents.filter(event => {
-      if (!event || typeof event !== 'object') return false;
-      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
-      return date === todayString;
-    }).sort((a, b) => String(a.time ?? a.waktu ?? '00:00').localeCompare(String(b.time ?? b.waktu ?? '00:00')));
-
-    if (status) status.textContent = todayEvents.length
-      ? `${todayEvents.length} agenda hari ini`
-      : 'Tidak ada jadwal untuk hari ini';
-
-    if (!todayEvents.length) {
-      agendaContainer.innerHTML = '<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
-      return todayEvents;
-    }
-
-    const rows = todayEvents.map(event => {
-      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
-      const time = publicEscape(event.time ?? event.jam ?? event.waktu ?? '-');
-      const title = publicEventTitle(event);
-      const detail = publicEscape(event.detail ?? event.keterangan ?? '-');
-      return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(date))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
-    }).join('');
-    agendaContainer.innerHTML = `<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
-    return todayEvents;
-  } catch (error) {
-    console.error('Gagal memuat jadwal:', error);
-    return [];
-  }
+function samaliJakartaToday(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get=t=>parts.find(x=>x.type===t)?.value||'';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-function loadEvents(){return loadTodaySchedules();}
+async function samaliJakartaToday(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get=t=>parts.find(x=>x.type===t)?.value||'';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
 
-let publicScheduleFingerprint='';
+async function loadTodaySchedules(){
+  const agendaContainer=document.getElementById('portalScheduleTable');
+  const status=document.getElementById('publicScheduleStatus');
+  if(!agendaContainer)return [];
+  if(!SUPABASE_READY){agendaContainer.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Database belum dikonfigurasi</div>';return [];}
+  const today=samaliJakartaToday();
+  const {data,error}=await db.from(JADWAL_TABLE).select('*').eq('date',today).order('time',{ascending:true});
+  if(error){console.error('Supabase jadwal Jamaah:',error);if(status)status.textContent='Jadwal belum dapat dimuat';return [];}
+  const todayEvents=data||[];
+  if(status)status.textContent=todayEvents.length?`${todayEvents.length} agenda hari ini`:'Tidak ada jadwal untuk hari ini';
+  if(!todayEvents.length){agendaContainer.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';return todayEvents;}
+  const rows=todayEvents.map(event=>`<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(event.date)}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${publicEscape(event.time||'-')}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${publicEscape(event.title||'Kegiatan')}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${publicEscape(event.detail||'-')}</td></tr>`).join('');
+  agendaContainer.innerHTML=`<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return todayEvents;
+}
+
 async function loadJadwal(){
-  const raw=(()=>{try{return JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')}catch(e){return []}})();
-  const normalized=Array.isArray(raw)?raw.map(publicNormalizeScheduleEvent).filter(item=>item.date):[];
-  publicScheduleEvents=normalized;
-  publicScheduleFingerprint=JSON.stringify(normalized);
-  loadTodaySchedules();
+  if(!SUPABASE_READY){publicScheduleEvents=[];return false;}
+  const {data,error}=await db.from(JADWAL_TABLE).select('*').order('date',{ascending:true}).order('time',{ascending:true});
+  if(error){console.error('Supabase semua jadwal Jamaah:',error);return false;}
+  publicScheduleEvents=(data||[]).map(publicNormalizeScheduleEvent).filter(x=>x.date);
+  publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
+  renderPublicCalendar?.();
   return true;
 }
 
-// Sinkronisasi langsung ketika Admin mengubah localStorage pada origin yang sama.
-window.addEventListener('storage',function(event){
-  if(event.key!==SAMALI_KEGIATAN_KEY)return;
-  try{
-    const incoming=JSON.parse(event.newValue||'[]');
-    if(!Array.isArray(incoming))return;
-    publicScheduleEvents=incoming.map(publicNormalizeScheduleEvent).filter(item=>item.date);
-    publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
-    loadTodaySchedules();
-    const status=document.getElementById('publicScheduleStatus');
-    if(status)status.textContent=publicScheduleEvents.length
-      ? `${publicScheduleEvents.length} jadwal tersedia.`
-      : 'Belum ada jadwal.';
-  }catch(error){
-    console.warn('Sinkronisasi jadwal Jamaah gagal:',error);
-  }
-});
+function loadEvents(){return loadTodaySchedules();}
+function startJamaahSupabaseRealtime(){
+  if(!SUPABASE_READY || window.__samaliJamaahRealtime)return;
+  window.__samaliJamaahRealtime=db.channel('jamaah-samali-realtime').on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadTodaySchedules();loadJadwal();}).subscribe();
+}
 
 /* =========================================================
    SAAT HALAMAN DIBUKA
@@ -9543,6 +9521,7 @@ async function verifySessionAndRoute(){
   showPage(initialPage);
   renderPersonalAttendanceReference();
   loadTodaySchedules();
+  startJamaahSupabaseRealtime();
   if(jamaahJadwalTimer){clearInterval(jamaahJadwalTimer);jamaahJadwalTimer=null;}
   return true;
 }
@@ -9567,6 +9546,7 @@ window.addEventListener('pagehide', function(){
 
 document.addEventListener('DOMContentLoaded', function(){
   loadTodaySchedules();
+  startJamaahSupabaseRealtime();
   applyTheme(getSavedTheme());
   verifySessionAndRoute();
   const form = document.getElementById('formSensus');
