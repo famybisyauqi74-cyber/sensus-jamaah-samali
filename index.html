@@ -9714,7 +9714,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 id: String(row?.id ?? ''),
                 sheetRow: Number(row?.sheet_row ?? row?.sheetRow ?? 0) || 0,
                 no: Number(row?.no ?? 0) || index + 1,
-                kodeKelg: String(row?.["No. Keluarga"] ?? '').trim(),
+                kodeKelg: String(row?.["KODE KELG."] ?? '').trim(),
                 pref: String(row?.GELAR ?? row?.gelar ?? '').trim(),
                 nama: String(row?.NAMA ?? '').trim(),
                 lp: String(row?.["L/P"] ?? '').trim().toUpperCase(),
@@ -9754,9 +9754,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 try {
                     const { data, error } = await db
                         .from(SENSUS_TABLE)
-                        .select('*')
-                        .order('no', { ascending: true, nullsFirst: false })
-                        .order('id', { ascending: true });
+                        .select('*');
                     if (error) throw error;
                     applySensusServerData((data || []).map(normalizeSensusRow), false);
                     return true;
