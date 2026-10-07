@@ -7,7 +7,7 @@
 <title>Portal Samali</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
-<link rel="manifest" href="manifest-jamaah.json">
+<link rel="manifest" href="manifest.json">
 <meta content="no-store, no-cache, must-revalidate, max-age=0" http-equiv="Cache-Control"/>
 <meta content="no-cache" http-equiv="Pragma"/>
 <meta content="0" http-equiv="Expires"/>
@@ -7702,6 +7702,13 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
     color: #0f172a !important;
 }
 </style>
+
+<style id="samali-mobile-performance">
+@media (max-width: 767px){
+  #samali-custom-cursor,#samali-cursor-ripple{display:none!important;visibility:hidden!important;pointer-events:none!important}
+  html,body{cursor:auto!important}
+}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
 <!-- =====================================================
@@ -8227,7 +8234,7 @@ function showPage(page){
   if(footer) footer.classList.toggle('hidden',!isPublic);
   try{history.replaceState(null,'','#'+page);}catch(e){}
   if(page==='beranda'){renderHomeName?.();}
-  if(page==='jadwal'){renderPublicCalendar?.();}
+  if(page==='jadwal'){try{publicScheduleEvents=(JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')||[]).map(publicNormalizeScheduleEvent).filter(item=>item.date);}catch(e){publicScheduleEvents=[];} renderPublicCalendar?.();}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -9434,84 +9441,55 @@ async function cekRekapSaya(){
 }
 
 
-function loadEvents() {
-    try {
-        const eventsArray = JSON.parse(localStorage.getItem('samali_kegiatan')) || [];
-        publicScheduleEvents = Array.isArray(eventsArray) ? eventsArray.map(publicNormalizeScheduleEvent).filter(item => item.date) : [];
-        publicScheduleFingerprint = JSON.stringify(publicScheduleEvents);
-        renderPublicCalendar();
-        const status = document.getElementById('publicScheduleStatus');
-        if (status) status.textContent = publicScheduleEvents.length ? `${publicScheduleEvents.length} jadwal tersedia.` : 'Belum ada jadwal.';
-    } catch (error) {
-        console.error('Gagal memuat jadwal:', error);
-        publicScheduleEvents = [];
-        renderPublicCalendar();
-    }
+function getTodayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
+function loadTodaySchedules(){
+  const today=getTodayKey();
+  const box=document.getElementById('portalScheduleTable');
+  const status=document.getElementById('publicScheduleStatus');
+  let events=[];
+  try{events=JSON.parse(localStorage.getItem('samali_kegiatan'))||[]}catch(e){events=[]}
+  if(!Array.isArray(events))events=[];
+
+  const todaySchedules=[];
+  for(let i=0;i<events.length;i++){
+    const item=events[i];
+    if(!item)continue;
+    const date=String(item.date??item.tanggal??'').slice(0,10);
+    if(date===today)todaySchedules.push(item);
+  }
+  todaySchedules.sort((a,b)=>String(a.time??a.waktu??'00:00').localeCompare(String(b.time??b.waktu??'00:00')));
+
+  if(status)status.textContent=todaySchedules.length?`${todaySchedules.length} agenda hari ini`:'Tidak ada jadwal untuk hari ini';
+  if(!box)return todaySchedules;
+  if(!todaySchedules.length){
+    box.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
+    return todaySchedules;
+  }
+  const rows=todaySchedules.map(e=>{
+    const d=String(e.date??e.tanggal??'').slice(0,10);
+    const time=publicEscape(e.time??e.waktu??'-');
+    const title=publicEventTitle(e);
+    const detail=publicEscape(e.detail??e.keterangan??'-');
+    return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(d))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
+  }).join('');
+  box.innerHTML=`<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return todaySchedules;
+}
+
+function loadEvents(){return loadTodaySchedules();}
 
 let publicScheduleFingerprint='';
 async function loadJadwal(){
-  const status=document.getElementById('publicScheduleStatus');
-
-  // 1) Baca cache bersama terlebih dahulu.
-  //    Cache ini ditulis oleh index.html.
-  try{
-    const cached=JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]');
-    if(Array.isArray(cached)){
-      publicScheduleEvents=cached.map(publicNormalizeScheduleEvent).filter(item=>item.date);
-      publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
-      renderPublicCalendar();
-      if(status)status.textContent=publicScheduleEvents.length
-        ? `${publicScheduleEvents.length} jadwal tersedia.`
-        : 'Belum ada jadwal.';
-    }
-  }catch(e){
-    console.warn('Cache jadwal bersama tidak dapat dibaca:',e);
-  }
-
-  // 2) Tetap ambil sumber server agar data yang baru dibuat Admin
-  //    ikut muncul walaupun cache browser belum diperbarui.
-  try{
-    let result=null, lastError=null;
-    for(let attempt=1;attempt<=3;attempt++){
-      try{
-        result=await scheduleJsonp({action:'getJadwal'},20000);
-        if(result&&result.status==='success')break;
-        lastError=new Error(result?.message||'Jadwal belum dapat dimuat.');
-      }catch(err){
-        lastError=err;
-        if(attempt<3)await new Promise(resolve=>setTimeout(resolve,500));
-      }
-    }
-
-    if(!result||result.status!=='success')throw lastError||new Error('Jadwal belum dapat dimuat.');
-
-    const raw=Array.isArray(result.data)?result.data:(Array.isArray(result.events)?result.events:[]);
-    const normalized=raw.map(publicNormalizeScheduleEvent).filter(item=>item.date);
-    const fp=JSON.stringify(normalized);
-
-    publicScheduleFingerprint=fp;
-    publicScheduleEvents=normalized;
-
-    // 3) Simpan hasil server ke KEY YANG SAMA dengan Admin.
-    try{
-      localStorage.setItem(SAMALI_KEGIATAN_KEY,JSON.stringify(publicScheduleEvents));
-    }catch(e){
-      console.warn('Cache jadwal bersama tidak dapat disimpan:',e);
-    }
-
-    renderPublicCalendar();
-    if(status)status.textContent=normalized.length
-      ? `${normalized.length} jadwal tersedia.`
-      : 'Belum ada jadwal.';
-    return true;
-  }catch(error){
-    // Jika server gagal, jadwal dari localStorage tetap ditampilkan.
-    if(status)status.textContent=publicScheduleEvents.length
-      ? `${publicScheduleEvents.length} jadwal tersedia (cache).`
-      : 'Jadwal belum dapat dimuat.';
-    return false;
-  }
+  const raw=(()=>{try{return JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')}catch(e){return []}})();
+  const normalized=Array.isArray(raw)?raw.map(publicNormalizeScheduleEvent).filter(item=>item.date):[];
+  publicScheduleEvents=normalized;
+  publicScheduleFingerprint=JSON.stringify(normalized);
+  loadTodaySchedules();
+  return true;
 }
 
 // Sinkronisasi langsung ketika Admin mengubah localStorage pada origin yang sama.
@@ -9522,7 +9500,7 @@ window.addEventListener('storage',function(event){
     if(!Array.isArray(incoming))return;
     publicScheduleEvents=incoming.map(publicNormalizeScheduleEvent).filter(item=>item.date);
     publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
-    renderPublicCalendar();
+    loadTodaySchedules();
     const status=document.getElementById('publicScheduleStatus');
     if(status)status.textContent=publicScheduleEvents.length
       ? `${publicScheduleEvents.length} jadwal tersedia.`
@@ -9547,9 +9525,8 @@ async function verifySessionAndRoute(){
   if(header) header.classList.remove('hidden'); if(footer) footer.classList.remove('hidden');
   showPage(initialPage);
   renderPersonalAttendanceReference();
-  loadJadwal();
-  if(jamaahJadwalTimer)clearInterval(jamaahJadwalTimer);
-  jamaahJadwalTimer=setInterval(()=>{ if(!document.hidden) loadJadwal(); },10000);
+  loadTodaySchedules();
+  if(jamaahJadwalTimer){clearInterval(jamaahJadwalTimer);jamaahJadwalTimer=null;}
   return true;
 }
 
@@ -9572,7 +9549,7 @@ window.addEventListener('pagehide', function(){
 });
 
 document.addEventListener('DOMContentLoaded', function(){
-  loadEvents();
+  loadTodaySchedules();
   applyTheme(getSavedTheme());
   verifySessionAndRoute();
   const form = document.getElementById('formSensus');
