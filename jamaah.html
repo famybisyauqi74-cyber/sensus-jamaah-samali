@@ -9447,37 +9447,59 @@ function getTodayKey(){
 }
 
 function loadTodaySchedules(){
-  const today=getTodayKey();
-  const box=document.getElementById('portalScheduleTable');
-  const status=document.getElementById('publicScheduleStatus');
-  let events=[];
-  try{events=JSON.parse(localStorage.getItem('samali_kegiatan'))||[]}catch(e){events=[]}
-  if(!Array.isArray(events))events=[];
+  try {
+    const rawData = localStorage.getItem('samali_kegiatan');
+    const agendaContainer = document.getElementById('portalScheduleTable');
+    if (!agendaContainer) return [];
 
-  const todaySchedules=[];
-  for(let i=0;i<events.length;i++){
-    const item=events[i];
-    if(!item)continue;
-    const date=String(item.date??item.tanggal??'').slice(0,10);
-    if(date===today)todaySchedules.push(item);
-  }
-  todaySchedules.sort((a,b)=>String(a.time??a.waktu??'00:00').localeCompare(String(b.time??b.waktu??'00:00')));
+    const allEvents = rawData ? JSON.parse(rawData) : [];
+    if (!Array.isArray(allEvents)) return [];
 
-  if(status)status.textContent=todaySchedules.length?`${todaySchedules.length} agenda hari ini`:'Tidak ada jadwal untuk hari ini';
-  if(!box)return todaySchedules;
-  if(!todaySchedules.length){
-    box.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
-    return todaySchedules;
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayString = `${yyyy}-${mm}-${dd}`;
+
+    const todayEvents = allEvents.filter(event => {
+      if (!event) return false;
+      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
+      return date === todayString;
+    });
+
+    todayEvents.sort((a, b) =>
+      String(a.time ?? a.waktu ?? '00:00').localeCompare(
+        String(b.time ?? b.waktu ?? '00:00')
+      )
+    );
+
+    const status = document.getElementById('publicScheduleStatus');
+    if (status) {
+      status.textContent = todayEvents.length
+        ? `${todayEvents.length} agenda hari ini`
+        : 'Tidak ada jadwal untuk hari ini';
+    }
+
+    if (todayEvents.length === 0) {
+      agendaContainer.innerHTML = '<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
+      return todayEvents;
+    }
+
+    const rows = todayEvents.map(event => {
+      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
+      const time = publicEscape(event.time ?? event.waktu ?? '-');
+      const title = publicEventTitle(event);
+      const detail = publicEscape(event.detail ?? event.keterangan ?? '-');
+
+      return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(date))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
+    }).join('');
+
+    agendaContainer.innerHTML = `<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return todayEvents;
+  } catch (error) {
+    console.error('Gagal memuat jadwal:', error);
+    return [];
   }
-  const rows=todaySchedules.map(e=>{
-    const d=String(e.date??e.tanggal??'').slice(0,10);
-    const time=publicEscape(e.time??e.waktu??'-');
-    const title=publicEventTitle(e);
-    const detail=publicEscape(e.detail??e.keterangan??'-');
-    return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(d))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
-  }).join('');
-  box.innerHTML=`<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
-  return todaySchedules;
 }
 
 function loadEvents(){return loadTodaySchedules();}
