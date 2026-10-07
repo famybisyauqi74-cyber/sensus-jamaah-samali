@@ -8462,6 +8462,459 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
     color: #0f172a !important;
 }
 </style>
+
+<style id="samali-login-dual-layout">
+/* =========================================================
+   PORTAL SAMALI — LOGIN DUAL LAYOUT
+   Desktop: 2-column premium layout
+   Mobile : mobile-first, compact, touch-friendly
+   IMPORTANT: tidak mengubah JavaScript / ID login.
+   ========================================================= */
+
+.samali-login-overlay{
+    position:fixed;
+    inset:0;
+    z-index:50;
+    width:100vw;
+    height:100dvh;
+    min-height:100vh;
+    overflow:hidden;
+    display:flex;
+    background:#020617;
+    color:#e2e8f0;
+}
+
+/* ---------- DESKTOP VIEW ---------- */
+.samali-login-desktop{
+    position:relative;
+    flex:1 1 58%;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    background:
+        radial-gradient(circle at 48% 42%, rgba(16,185,129,.18), transparent 28%),
+        radial-gradient(circle at 15% 90%, rgba(20,184,166,.10), transparent 34%),
+        linear-gradient(145deg,#020617 0%,#071426 48%,#06241f 100%);
+}
+
+.samali-desktop-brand{
+    position:relative;
+    z-index:2;
+    width:min(620px,78%);
+    padding:30px 0;
+}
+
+.samali-desktop-logo-ring{
+    width:clamp(150px,15vw,220px);
+    aspect-ratio:1;
+    border-radius:50%;
+    padding:10px;
+    display:grid;
+    place-items:center;
+    background:linear-gradient(145deg,#34d399,#10b981 55%,#0f766e);
+    box-shadow:0 0 0 1px rgba(52,211,153,.22),0 24px 70px rgba(16,185,129,.22);
+    margin-bottom:32px;
+}
+
+.samali-desktop-logo-ring img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    border-radius:50%;
+    display:block;
+    background:#020617;
+}
+
+.samali-desktop-kicker{
+    color:#6ee7b7;
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.22em;
+    margin-bottom:10px;
+}
+
+.samali-desktop-brand-text h1{
+    margin:0;
+    color:#f8fafc;
+    font-size:clamp(42px,5vw,76px);
+    line-height:.98;
+    letter-spacing:-.045em;
+    font-weight:500;
+}
+
+.samali-desktop-brand-text h1 strong{
+    color:#34d399;
+    font-weight:900;
+}
+
+.samali-desktop-brand-text p{
+    max-width:480px;
+    margin:22px 0 0;
+    color:#94a3b8;
+    font-size:15px;
+    line-height:1.8;
+}
+
+.samali-desktop-line{
+    width:86px;
+    height:3px;
+    margin-top:34px;
+    border-radius:999px;
+    background:linear-gradient(90deg,#34d399,transparent);
+}
+
+.samali-desktop-caption{
+    margin-top:14px;
+    color:#64748b;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+}
+
+.samali-desktop-orb{
+    position:absolute;
+    border-radius:50%;
+    pointer-events:none;
+    filter:blur(2px);
+}
+.samali-orb-one{
+    width:360px;height:360px;
+    right:-150px;top:-120px;
+    background:radial-gradient(circle,rgba(16,185,129,.16),transparent 68%);
+}
+.samali-orb-two{
+    width:460px;height:460px;
+    left:-280px;bottom:-260px;
+    background:radial-gradient(circle,rgba(45,212,191,.12),transparent 68%);
+}
+.samali-desktop-grid{
+    position:absolute;
+    inset:0;
+    opacity:.16;
+    background-image:linear-gradient(rgba(148,163,184,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.08) 1px,transparent 1px);
+    background-size:52px 52px;
+    mask-image:linear-gradient(to right,rgba(0,0,0,.8),transparent 75%);
+    pointer-events:none;
+}
+
+/* ---------- SHARED LOGIN CORE ---------- */
+.samali-login-core{
+    position:relative;
+    z-index:10;
+    flex:0 0 min(42%,620px);
+    min-width:500px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:44px clamp(38px,5vw,86px);
+    background:#f8fafc;
+}
+
+.samali-login-card{
+    position:relative;
+    width:min(100%,430px);
+    padding:34px 34px 26px;
+    border:1px solid #e2e8f0;
+    border-radius:28px;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 30px 80px rgba(15,23,42,.14),0 8px 24px rgba(15,23,42,.06);
+}
+
+.samali-login-theme-toggle{
+    position:absolute;
+    top:18px;
+    right:18px;
+    width:40px;
+    height:40px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:12px;
+    border:1px solid #cbd5e1;
+    background:#f1f5f9;
+    color:#0f172a;
+    font-size:17px;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(15,23,42,.08);
+}
+.samali-login-theme-toggle:hover{transform:translateY(-1px);background:#e2e8f0}
+.samali-login-theme-toggle:active{transform:scale(.96)}
+
+.samali-login-header{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    margin:8px 0 28px;
+}
+
+.samali-login-logo-wrap{
+    width:96px;
+    height:96px;
+    padding:6px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    background:#020617;
+    border:1px solid #334155;
+    box-shadow:0 10px 30px rgba(15,23,42,.14),inset 0 0 0 1px rgba(255,255,255,.05);
+    overflow:hidden;
+}
+
+.samali-login-logo{
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:cover;
+    border-radius:50%;
+}
+
+.samali-login-title-wrap h2{
+    margin:15px 0 3px;
+    color:#0f172a;
+    font-size:24px;
+    line-height:1.15;
+    font-weight:800;
+    letter-spacing:-.025em;
+}
+.samali-login-title-wrap p{
+    margin:0;
+    color:#059669;
+    font-size:12px;
+    font-weight:700;
+}
+
+.samali-login-form{display:flex;flex-direction:column;gap:18px}
+.samali-login-field{display:flex;flex-direction:column;gap:7px}
+.samali-login-field label{
+    color:#475569;
+    font-size:11px;
+    line-height:1.2;
+    font-weight:800;
+    letter-spacing:.10em;
+    text-transform:uppercase;
+}
+.samali-login-field input{
+    width:100%;
+    min-height:50px;
+    padding:13px 15px;
+    border:1px solid #cbd5e1;
+    border-radius:13px;
+    outline:none;
+    background:#fff;
+    color:#0f172a;
+    font-size:14px;
+    line-height:1.4;
+    box-shadow:0 1px 2px rgba(15,23,42,.03);
+}
+.samali-login-field input::placeholder{color:#94a3b8}
+.samali-login-field input:focus{
+    border-color:#10b981;
+    box-shadow:0 0 0 4px rgba(16,185,129,.10);
+}
+
+.samali-login-submit{
+    width:100%;
+    min-height:52px;
+    margin-top:2px;
+    border:0;
+    border-radius:13px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    background:linear-gradient(135deg,#059669,#10b981);
+    color:#fff;
+    font-size:14px;
+    font-weight:800;
+    cursor:pointer;
+    box-shadow:0 12px 24px rgba(5,150,105,.20);
+}
+.samali-login-submit:hover{transform:translateY(-1px);box-shadow:0 15px 30px rgba(5,150,105,.25)}
+.samali-login-submit:active{transform:scale(.985)}
+.samali-login-submit:disabled{opacity:.65;transform:none;cursor:not-allowed}
+
+.samali-login-footer{
+    margin:22px 0 0;
+    text-align:center;
+    color:#94a3b8;
+    font-size:10px;
+    line-height:1.5;
+}
+
+/* ---------- MOBILE-ONLY VIEW ---------- */
+.samali-login-mobile{display:none}
+
+/* ---------- DARK MODE: LOGO CONTAINER + LOGIN CARD ---------- */
+html.dark .samali-login-overlay,
+body:not(.theme-light) .samali-login-overlay{background:#020617}
+
+html.dark .samali-login-core,
+body:not(.theme-light) .samali-login-core{background:#020617}
+
+html.dark .samali-login-card,
+body:not(.theme-light) .samali-login-card{
+    background:rgba(15,23,42,.98);
+    border-color:#334155;
+    box-shadow:0 30px 80px rgba(0,0,0,.38),0 8px 24px rgba(0,0,0,.20);
+}
+
+html.dark .samali-login-logo-wrap,
+body:not(.theme-light) .samali-login-logo-wrap{
+    background:#020617;
+    border-color:#475569;
+    box-shadow:0 10px 30px rgba(0,0,0,.32),inset 0 0 0 1px rgba(255,255,255,.03);
+}
+
+html.dark .samali-login-title-wrap h2,
+body:not(.theme-light) .samali-login-title-wrap h2{color:#f8fafc}
+html.dark .samali-login-title-wrap p,
+body:not(.theme-light) .samali-login-title-wrap p{color:#34d399}
+html.dark .samali-login-field label,
+body:not(.theme-light) .samali-login-field label{color:#cbd5e1}
+html.dark .samali-login-field input,
+body:not(.theme-light) .samali-login-field input{
+    background:#020617;
+    border-color:#334155;
+    color:#f8fafc;
+}
+html.dark .samali-login-field input::placeholder,
+body:not(.theme-light) .samali-login-field input::placeholder{color:#64748b}
+html.dark .samali-login-theme-toggle,
+body:not(.theme-light) .samali-login-theme-toggle{
+    background:#1e293b;
+    color:#f8fafc;
+    border-color:#475569;
+}
+html.dark .samali-login-theme-toggle:hover,
+body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
+
+/* ---------- MOBILE BREAKPOINT ---------- */
+@media (max-width:767px){
+    .samali-login-overlay{
+        min-height:100dvh;
+        height:auto;
+        overflow-y:auto;
+        display:block;
+        background:#f8fafc;
+    }
+
+    .samali-login-desktop{display:none!important}
+
+    .samali-login-mobile{
+        display:block;
+        position:fixed;
+        inset:0;
+        z-index:0;
+        pointer-events:none;
+        background:
+            radial-gradient(circle at 50% -10%,rgba(16,185,129,.14),transparent 34%),
+            #f8fafc;
+    }
+    .samali-mobile-glow{
+        position:absolute;
+        width:240px;height:240px;
+        right:-100px;top:-80px;
+        border-radius:50%;
+        background:rgba(16,185,129,.10);
+        filter:blur(36px);
+    }
+
+    .samali-login-core{
+        position:relative;
+        z-index:2;
+        min-width:0;
+        width:100%;
+        min-height:100dvh;
+        padding:18px 14px 24px;
+        display:flex;
+        align-items:flex-start;
+        justify-content:center;
+        background:transparent;
+    }
+
+    .samali-login-card{
+        width:100%;
+        max-width:none;
+        margin:0;
+        padding:58px 18px 22px;
+        border-radius:20px;
+        border:1px solid #e2e8f0;
+        box-shadow:0 16px 40px rgba(15,23,42,.08);
+    }
+
+    .samali-login-theme-toggle{
+        top:12px;
+        right:12px;
+        width:40px;
+        height:40px;
+        border-radius:11px;
+    }
+
+    .samali-login-header{margin:0 0 25px}
+    .samali-login-logo-wrap{
+        width:78px;
+        height:78px;
+        padding:5px;
+        border-radius:50%;
+    }
+    .samali-login-title-wrap h2{font-size:22px;margin-top:12px}
+    .samali-login-title-wrap p{font-size:11px}
+
+    .samali-login-form{gap:20px}
+    .samali-login-field{gap:8px}
+    .samali-login-field label{font-size:10px}
+    .samali-login-field input{
+        min-height:54px;
+        padding:14px 15px;
+        border-radius:13px;
+        font-size:16px; /* mencegah zoom otomatis iOS */
+    }
+    .samali-login-submit{
+        min-height:54px;
+        margin-top:0;
+        border-radius:13px;
+        font-size:15px;
+    }
+    .samali-login-footer{margin-top:20px}
+
+    html.dark .samali-login-overlay,
+    body:not(.theme-light) .samali-login-overlay{background:#020617}
+    html.dark .samali-login-mobile,
+    body:not(.theme-light) .samali-login-mobile{
+        background:
+            radial-gradient(circle at 50% -10%,rgba(16,185,129,.12),transparent 32%),
+            #020617;
+    }
+    html.dark .samali-login-card,
+    body:not(.theme-light) .samali-login-card{
+        background:#0f172a;
+        border-color:#334155;
+        box-shadow:0 18px 44px rgba(0,0,0,.34);
+    }
+}
+
+@media (max-width:380px){
+    .samali-login-core{padding:12px 10px 18px}
+    .samali-login-card{padding:56px 15px 20px}
+    .samali-login-logo-wrap{width:70px;height:70px}
+    .samali-login-title-wrap h2{font-size:20px}
+}
+
+@media (min-width:768px) and (max-width:1050px){
+    .samali-login-desktop{flex-basis:52%}
+    .samali-login-core{flex-basis:48%;min-width:430px;padding:34px 28px}
+    .samali-desktop-brand{width:82%}
+    .samali-desktop-brand-text h1{font-size:46px}
+}
+
+@media (prefers-reduced-motion:reduce){
+    .samali-login-theme-toggle,.samali-login-submit{transition:none!important}
+}
+</style>
+
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans h-screen w-screen overflow-hidden flex flex-col">
 <!-- Animated custom cursor: kept inside BODY for reliable rendering -->
@@ -8474,37 +8927,86 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
 <span class="cursor-pointer"></span>
 </div>
 <div aria-hidden="true" id="samali-cursor-ripple"></div>
-<!-- LOGIN OVERLAY -->
-<div class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4" id="authOverlay">
-<button type="button" id="theme-toggle" aria-label="Beralih ke mode terang" title="Beralih ke mode terang" class="fixed top-4 right-4 z-[60] w-10 h-10 rounded-xl bg-slate-800 text-white border border-slate-700 flex items-center justify-center shadow-lg hover:bg-slate-700 transition-colors">🌙</button>
-<div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+<!-- LOGIN OVERLAY — DUAL RESPONSIVE DESIGN (DESKTOP / MOBILE) -->
+<div id="authOverlay" class="samali-login-overlay">
 
-<div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none"></div>
-<div class="flex flex-col items-center text-center mb-6">
-<div class="samali-brand-mark mb-3"><div class="bg-slate-100 dark:bg-slate-800"><i data-lucide="building-2"></i></div></div>
-<div>
-<h2 class="text-xl font-bold text-white tracking-wide">Kelompok Samali</h2>
-<p class="text-xs font-medium text-emerald-400 mt-0.5">Sistem Informasi Sensus Jamaah</p>
+    <!-- DESKTOP-ONLY VIEW: branding megah di kiri -->
+    <div class="samali-login-desktop" aria-hidden="true">
+        <div class="samali-desktop-brand">
+            <div class="samali-desktop-logo-ring">
+                <img src="logo.png" alt="Logo Kelompok Samali">
+            </div>
+            <div class="samali-desktop-brand-text">
+                <div class="samali-desktop-kicker">SISTEM INFORMASI</div>
+                <h1>Kelompok<br><strong>SAMALI</strong></h1>
+                <p>Portal manajemen sensus jamaah yang terintegrasi, rapi, dan mudah digunakan.</p>
+            </div>
+            <div class="samali-desktop-line"></div>
+            <div class="samali-desktop-caption">Portal Samali · 2026</div>
+        </div>
+        <div class="samali-desktop-orb samali-orb-one"></div>
+        <div class="samali-desktop-orb samali-orb-two"></div>
+        <div class="samali-desktop-grid"></div>
+    </div>
+
+    <!-- MOBILE-ONLY VIEW: background bersih tanpa dekorasi berat -->
+    <div class="samali-login-mobile" aria-hidden="true">
+        <div class="samali-mobile-glow"></div>
+    </div>
+
+    <!-- SHARED LOGIN CORE: SATU-SATUNYA ELEMEN FORM.
+         ID INPUT TETAP SAMA AGAR JAVASCRIPT LOGIN TIDAK BERUBAH. -->
+    <div class="samali-login-core">
+        <div class="samali-login-card">
+            <button type="button" id="theme-toggle"
+                aria-label="Beralih ke mode terang"
+                title="Beralih ke mode terang"
+                class="samali-login-theme-toggle">🌙</button>
+
+            <div class="samali-login-header">
+                <div class="samali-login-logo-wrap">
+                    <img src="logo.png" alt="Logo Kelompok Samali" class="samali-login-logo">
+                </div>
+                <div class="samali-login-title-wrap">
+                    <h2>Portal Samali</h2>
+                    <p>Manajemen Sensus Jamaah</p>
+                </div>
+            </div>
+
+            <div class="hidden mb-4 p-3.5 rounded-xl text-xs font-semibold leading-relaxed border transition-all" id="authAlert"></div>
+
+            <form class="samali-login-form" onsubmit="event.preventDefault(); handleDirectLogin();">
+                <div class="samali-login-field">
+                    <label for="userEmailInput">Username / Email</label>
+                    <input autocomplete="email"
+                        id="userEmailInput"
+                        name="email"
+                        placeholder="user@gmail.com"
+                        required=""
+                        type="text" />
+                </div>
+
+                <div class="samali-login-field">
+                    <label for="userPasswordInput">Kata Sandi</label>
+                    <input autocomplete="current-password"
+                        id="userPasswordInput"
+                        name="password"
+                        placeholder="Masukkan kata sandi..."
+                        required=""
+                        type="password" />
+                </div>
+
+                <button id="btnLogin" class="samali-login-submit" type="submit">
+                    <span>Masuk</span>
+                    <i class="w-4 h-4" data-lucide="arrow-right"></i>
+                </button>
+            </form>
+
+            <p class="samali-login-footer">Sistem Manajemen Sensus Jamaah © 2026</p>
+        </div>
+    </div>
 </div>
-</div>
-<div class="hidden mb-4 p-3.5 rounded-xl text-xs font-semibold leading-relaxed border transition-all" id="authAlert"></div>
-<form class="space-y-4" onsubmit="event.preventDefault(); handleDirectLogin();">
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Username / Email</label>
-<input autocomplete="email" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors" id="userEmailInput" name="email" placeholder="user@gmail.com" required="" type="text"/>
-</div>
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Kata Sandi</label>
-<input autocomplete="current-password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors" id="userPasswordInput" name="password" placeholder="Masukkan kata sandi..." required="" type="password"/>
-</div>
-<button class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 mt-2" id="btnLogin" type="submit">
-<span>Masuk</span>
-<i class="w-4 h-4" data-lucide="arrow-right"></i>
-</button>
-</form>
-<p class="text-[11px] text-slate-500 text-center mt-6">Sistem Manajemen Sensus Jamaah © 2026</p>
-</div>
-</div>
+
 <!-- MODAL CONTAINER -->
 <div class="modal-overlay fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none" id="fullScreenModalOverlay" onclick="handleModalBackdropClick(event)">
 <div class="modal-card bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden transform translate-y-8 scale-95 opacity-0" id="fullScreenModalContainer">
