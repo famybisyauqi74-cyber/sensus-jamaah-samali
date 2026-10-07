@@ -9448,52 +9448,47 @@ function getTodayKey(){
 
 function loadTodaySchedules(){
   try {
-    const rawData = localStorage.getItem('samali_kegiatan');
     const agendaContainer = document.getElementById('portalScheduleTable');
+    const status = document.getElementById('publicScheduleStatus');
     if (!agendaContainer) return [];
 
-    const allEvents = rawData ? JSON.parse(rawData) : [];
-    if (!Array.isArray(allEvents)) return [];
-
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayString = `${yyyy}-${mm}-${dd}`;
-
-    const todayEvents = allEvents.filter(event => {
-      if (!event) return false;
-      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
-      return date === todayString;
-    });
-
-    todayEvents.sort((a, b) =>
-      String(a.time ?? a.waktu ?? '00:00').localeCompare(
-        String(b.time ?? b.waktu ?? '00:00')
-      )
-    );
-
-    const status = document.getElementById('publicScheduleStatus');
-    if (status) {
-      status.textContent = todayEvents.length
-        ? `${todayEvents.length} agenda hari ini`
-        : 'Tidak ada jadwal untuk hari ini';
+    let allEvents = [];
+    try {
+      const rawData = localStorage.getItem('samali_kegiatan');
+      const parsed = rawData ? JSON.parse(rawData) : [];
+      allEvents = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      allEvents = [];
     }
 
-    if (todayEvents.length === 0) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const part = type => parts.find(item => item.type === type)?.value || '';
+    const todayString = `${part('year')}-${part('month')}-${part('day')}`;
+
+    const todayEvents = allEvents.filter(event => {
+      if (!event || typeof event !== 'object') return false;
+      const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
+      return date === todayString;
+    }).sort((a, b) => String(a.time ?? a.waktu ?? '00:00').localeCompare(String(b.time ?? b.waktu ?? '00:00')));
+
+    if (status) status.textContent = todayEvents.length
+      ? `${todayEvents.length} agenda hari ini`
+      : 'Tidak ada jadwal untuk hari ini';
+
+    if (!todayEvents.length) {
       agendaContainer.innerHTML = '<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
       return todayEvents;
     }
 
     const rows = todayEvents.map(event => {
       const date = String(event.date ?? event.tanggal ?? '').slice(0, 10);
-      const time = publicEscape(event.time ?? event.waktu ?? '-');
+      const time = publicEscape(event.time ?? event.jam ?? event.waktu ?? '-');
       const title = publicEventTitle(event);
       const detail = publicEscape(event.detail ?? event.keterangan ?? '-');
-
       return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(date))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
     }).join('');
-
     agendaContainer.innerHTML = `<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
     return todayEvents;
   } catch (error) {
