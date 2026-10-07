@@ -9,8 +9,8 @@
    SUPABASE CONFIGURATION - ISI 2 NILAI INI
    Jangan gunakan service_role key di browser.
 ========================================================= */
-const SUPABASE_URL = 'https://eopktyqzztmmvimyedmh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
+const SUPABASE_URL = 'ISI_SUPABASE_URL_DI_SINI';
+const SUPABASE_ANON_KEY = 'ISI_SUPABASE_PUBLISHABLE_OR_ANON_KEY_DI_SINI';
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const JADWAL_TABLE = 'kegiatan';
@@ -9273,7 +9273,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             const calculatedAge = calculateAgeFromBirthDate(birthDate);
             if (calculatedAge !== null) return calculatedAge;
 
-            const storedAge = Number(jamaah?.umur);
+            const storedAge = parseInt(jamaah?.umur, 10);
             return Number.isFinite(storedAge) && storedAge >= 0 ? storedAge : null;
         }
 
@@ -9714,15 +9714,15 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 id: String(row?.id ?? ''),
                 sheetRow: Number(row?.sheet_row ?? row?.sheetRow ?? 0) || 0,
                 no: Number(row?.no ?? 0) || index + 1,
-                kodeKelg: String(row?.kode_kelg ?? row?.kodeKelg ?? row?.kode_kk ?? '').trim(),
-                pref: String(row?.pref ?? row?.gelar ?? '').trim(),
-                nama: String(row?.nama ?? '').trim(),
-                lp: String(row?.lp ?? '').trim().toUpperCase(),
-                ttl: String(row?.ttl ?? '').trim(),
-                umur: Number(row?.umur ?? 0) || 0,
-                statusBk: String(row?.status_bk ?? row?.statusBk ?? row?.status_hubungan ?? '').trim().toUpperCase(),
-                status: String(row?.status ?? '').trim(),
-                alamat: String(row?.alamat ?? '').trim(),
+                kodeKelg: String(row?.["No. Keluarga"] ?? '').trim(),
+                pref: String(row?.GELAR ?? row?.gelar ?? '').trim(),
+                nama: String(row?.NAMA ?? '').trim(),
+                lp: String(row?.["L/P"] ?? '').trim().toUpperCase(),
+                ttl: String(row?.TTL ?? row?.ttl ?? '').trim(),
+                umur: parseInt(row?.UMUR, 10) || 0,
+                statusBk: String(row?.["STATUS HUBUNGAN"] ?? row?.STATUS_BK ?? row?.status_bk ?? '').trim().toUpperCase(),
+                status: String(row?.STATUS ?? row?.status ?? '').trim(),
+                alamat: String(row?.["ALAMAT RUMAH"] ?? '').trim(),
                 telepon: String(row?.telepon ?? '').trim(),
                 ket: String(row?.ket ?? row?.keterangan ?? '').trim()
             };
