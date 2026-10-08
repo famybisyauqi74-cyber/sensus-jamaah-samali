@@ -9269,18 +9269,15 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         }
 
         function getCurrentAge(jamaah) {
-            const birthDate = extractBirthDate(jamaah?.ttl);
-            const calculatedAge = calculateAgeFromBirthDate(birthDate);
-            if (calculatedAge !== null) return calculatedAge;
-
             const storedAge = parseInt(jamaah?.umur, 10);
             return Number.isFinite(storedAge) && storedAge >= 0 ? storedAge : null;
         }
 
         function refreshAllCalculatedAges() {
+            // UMUR dari Supabase adalah sumber usia. Jangan hitung ulang dari TTL.
             mockJamaah.forEach(jamaah => {
-                const age = getCurrentAge(jamaah);
-                if (age !== null) jamaah.umur = age;
+                const age = parseInt(jamaah?.umur, 10);
+                if (Number.isFinite(age) && age >= 0) jamaah.umur = age;
             });
         }
 
@@ -9457,10 +9454,10 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             Object.entries(ageCategoryMeta).forEach(([key,meta])=>lines.push(`${meta.label}: ${getAgeCategoryCount(key)} jamaah (${meta.range})`));
             copyTextWithToast(lines.join('\n'),'Ringkasan sensus berhasil disalin');
         }
-        function copySensusPerson(id){const w=mockJamaah.find(x=>String(x.id)===String(id));if(!w)return;const rows=[['No',w.no||'-'],['Kode KK',w.kodeKelg||'-'],['Gelar',w.pref||'-'],['Nama Lengkap',w.nama||'-'],['L/P',w.lp||'-'],['Tempat / Tgl Lahir',w.ttl||'-'],['Usia',getCurrentAge(w)],['Status Hubungan',w.statusBk||'-'],['Status',w.status||'-'],['Alamat',w.alamat||'-'],['Telepon',w.telepon||'-'],['Keterangan',w.ket||'-']];copyTextWithToast(rows.map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');}
+        function copySensusPerson(id){const w=mockJamaah.find(x=>String(x.id)===String(id));if(!w)return;const rows=[['No',w.no||'-'],['Kode KK',w.kodeKelg||'-'],['Gelar',w.pref||'-'],['Nama Lengkap',w.nama||'-'],['L/P',w.lp||'-'],['Tempat Lahir',w.tempatLahir||'-'],['Tanggal Lahir',w.tglLahir||'-'],['Usia',getCurrentAge(w)??'-'],['Status Hubungan',w.statusBk||'-'],['Status',w.status||'-'],['Alamat',w.alamat||'-'],['Telepon',w.telepon||'-'],['Keterangan',w.ket||'-']];copyTextWithToast(rows.map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');}
 
         function copySensusTable(){
-            const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat / Tgl Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
+            const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat Lahir','Tanggal Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
             const rows=getSensusCopyRows();
             copyTextWithToast([headers,...rows].map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');
         }
@@ -9495,7 +9492,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
     const jsPDF=await loadSamaliJsPdf();
     const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',putOnlyUsedFonts:true,compress:true});
     const rows=getSensusCopyRows();
-    const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat / Tgl Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
+    const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat Lahir','Tanggal Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
     const margin=8,pageW=297,pageH=210;
     const palette = theme === 'dark' ? { page:'#0f172a', header:'#047857', headerText:'#ffffff', head:'#1e293b', border:'#475569', text:'#e2e8f0', muted:'#94a3b8' } : { page:'#ffffff', header:'#059669', headerText:'#ffffff', head:'#f1f5f9', border:'#cbd5e1', text:'#1e293b', muted:'#64748b' };
     const widths=[8,18,15,34,9,32,10,25,23,38,25,32];
@@ -9710,21 +9707,24 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         }
 
         function normalizeSensusRow(row, index = 0) {
+            const rawTglLahir = String(row?.["TGL LAHIR"] ?? '').trim();
+            const tglLahir = rawTglLahir.includes('T') ? rawTglLahir.split('T')[0] : rawTglLahir;
             return {
                 id: String(row?.id ?? ''),
                 sheetRow: Number(row?.sheet_row ?? row?.sheetRow ?? 0) || 0,
-                no: Number(row?.no ?? 0) || index + 1,
+                no: String(row?.["NO. JAMAAH"] ?? '').trim() || String(index + 1),
                 kodeKelg: String(row?.["KODE KELG."] ?? '').trim(),
-                pref: String(row?.GELAR ?? row?.gelar ?? '').trim(),
-                nama: String(row?.NAMA ?? '').trim(),
+                pref: String(row?.["GELAR"] ?? '').trim() || '-',
+                nama: String(row?.["NAMA"] ?? '').trim(),
                 lp: String(row?.["L/P"] ?? '').trim().toUpperCase(),
-                ttl: String(row?.TTL ?? row?.ttl ?? '').trim(),
-                umur: parseInt(row?.UMUR, 10) || 0,
-                statusBk: String(row?.["STATUS HUBUNGAN"] ?? row?.STATUS_BK ?? row?.status_bk ?? '').trim().toUpperCase(),
-                status: String(row?.STATUS ?? row?.status ?? '').trim(),
-                alamat: String(row?.["ALAMAT RUMAH"] ?? '').trim(),
-                telepon: String(row?.telepon ?? '').trim(),
-                ket: String(row?.ket ?? row?.keterangan ?? '').trim()
+                tempatLahir: String(row?.["TEMPAT LAHIR"] ?? '').trim() || '-',
+                tglLahir: tglLahir || '-',
+                umur: parseInt(row?.["UMUR"], 10) || 0,
+                statusBk: String(row?.["STATUS HUBUNGAN"] ?? '').trim().toUpperCase() || '-',
+                status: String(row?.["STATUS"] ?? '').trim() || '-',
+                alamat: String(row?.["ALAMAT RUMAH"] ?? '').trim() || '-',
+                telepon: String(row?.["TELEPON"] ?? '').trim() || '-',
+                ket: String(row?.["KET"] ?? '').trim() || '-'
             };
         }
 
@@ -10917,7 +10917,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             let rowsHtml = filteredList.map((w, idx) => `
                 <tr class="border-b border-slate-800/80 hover:bg-slate-800/60 transition-colors">
-                    <td class="px-3 py-3.5 text-xs text-slate-400 text-center font-medium sticky-col-1">${idx + 1}</td>
+                    <td class="px-3 py-3.5 text-xs text-slate-400 text-center font-medium sticky-col-1">${w.no || '-'}</td>
                     <td class="px-3 py-3.5 text-xs text-emerald-400 font-semibold sticky-col-2 truncate">${w.kodeKelg}</td>
                     <td class="px-3 py-3.5 text-xs text-slate-300 text-center sticky-col-3 truncate">${w.pref || '-'}</td>
                     <td class="px-3 py-3.5 text-xs font-semibold text-white sticky-col-4" title="${w.nama}">
@@ -10926,8 +10926,9 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                     <td class="px-4 py-3.5 text-xs text-center">
                         <span class="px-2 py-0.5 rounded font-bold ${w.lp === 'L' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">${w.lp}</span>
                     </td>
-                    <td class="px-4 py-3.5 text-xs text-slate-300">${w.ttl || '-'}</td>
-                    <td class="px-4 py-3.5 text-xs text-slate-300 text-center">${getCurrentAge(w)} thn</td>
+                    <td class="px-4 py-3.5 text-xs text-slate-300">${w.tempatLahir || '-'}</td>
+                    <td class="px-4 py-3.5 text-xs text-slate-300">${w.tglLahir || '-'}</td>
+                    <td class="px-4 py-3.5 text-xs text-slate-300 text-center">${getCurrentAge(w) ?? '-'} thn</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 text-center font-semibold">${w.statusBk || '-'}</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 text-center font-semibold">${w.status || '-'}</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 max-w-xs truncate" title="${w.alamat}">${w.alamat || '-'}</td>
@@ -10946,7 +10947,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             `).join('');
 
             if (filteredList.length === 0) {
-                rowsHtml = `<tr><td colspan="13" class="px-6 py-8 text-center text-sm text-slate-400">Tidak ada data Jamaah yang sesuai dengan pencarian atau filter.</td></tr>`;
+                rowsHtml = `<tr><td colspan="14" class="px-6 py-8 text-center text-sm text-slate-400">Tidak ada data Jamaah yang sesuai dengan pencarian atau filter.</td></tr>`;
             }
 
             tbody.innerHTML = rowsHtml;
@@ -11439,19 +11440,40 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         setTimeout(() => loadAttendanceRecordsFromServer().catch(()=>{}), 500);
 
         async function executeDeleteSchedule(id) {
-            if (!SUPABASE_READY) { showToast('Supabase belum dikonfigurasi.', 'error'); return; }
-            const exists = scheduleEvents.some(item => String(item.id) === String(id));
-            if (!exists) return;
-            const { error } = await db.from(JADWAL_TABLE).delete().eq('id', String(id));
-            if (error) {
-                console.error('Supabase hapus kegiatan:', error);
-                showToast('Jadwal gagal dihapus.', 'error');
+            if (!SUPABASE_READY) {
+                showToast('Supabase belum dikonfigurasi.', 'error');
                 return;
             }
-            scheduleEvents = scheduleEvents.filter(item => String(item.id) !== String(id));
-            closeFullScreenModal();
-            renderScheduleAfterDatabaseChange();
-            showToast('Jadwal berhasil dihapus.', 'success');
+
+            const kegiatanId = String(id || '').trim();
+            if (!kegiatanId) {
+                console.error('ID kegiatan tidak ditemukan.');
+                return;
+            }
+
+            const exists = scheduleEvents.some(item => String(item.id) === kegiatanId);
+            if (!exists) return;
+
+            try {
+                // Hapus data sebenarnya dari Supabase, bukan hanya dari tampilan.
+                const { error } = await db
+                    .from('kegiatan')
+                    .delete()
+                    .eq('id', kegiatanId);
+
+                if (error) throw error;
+
+                // Setelah database berhasil dihapus, sinkronkan ulang data dari Supabase.
+                scheduleEvents = scheduleEvents.filter(item => String(item.id) !== kegiatanId);
+                closeFullScreenModal();
+                renderScheduleAfterDatabaseChange();
+                await loadScheduleEventsFromDatabase();
+
+                showToast('Jadwal berhasil dihapus.', 'success');
+            } catch (error) {
+                console.error('Supabase hapus kegiatan:', error);
+                showToast('Jadwal gagal dihapus.', 'error');
+            }
         }
 
 
@@ -12640,7 +12662,8 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                                             <th class="px-3 py-3.5 text-center sticky-col-3">Gelar</th>
                                             <th class="px-3 py-3.5 sticky-col-4">Nama Lengkap</th>
                                             <th class="px-4 py-3.5 text-center">L/P</th>
-                                            <th class="px-4 py-3.5">Tempat / Tgl Lahir</th>
+                                            <th class="px-4 py-3.5">Tempat Lahir</th>
+                                            <th class="px-4 py-3.5">Tanggal Lahir</th>
                                             <th class="px-4 py-3.5 text-center">Usia</th>
                                             <th class="px-4 py-3.5 text-center">Status Hubungan</th><th class="px-4 py-3.5 text-center">Status</th>
                                             <th class="px-4 py-3.5">Alamat Domisili</th>
@@ -12667,7 +12690,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 // Tabel menampilkan status memuat terlebih dahulu agar tidak sempat menampilkan data kosong.
                 const sensusBody = document.getElementById('JamaahTableBody');
                 if (sensusBody) {
-                    sensusBody.innerHTML = `<tr><td colspan="13" class="px-6 py-10 text-center text-sm text-slate-400"><div class="inline-flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-400"></i><span>Memuat data Jamaah terbaru...</span></div></td></tr>`;
+                    sensusBody.innerHTML = `<tr><td colspan="14" class="px-6 py-10 text-center text-sm text-slate-400"><div class="inline-flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-400"></i><span>Memuat data Jamaah terbaru...</span></div></td></tr>`;
                     lucide.createIcons();
                 }
                 if (sensusDataLoaded && mockJamaah.length) {
