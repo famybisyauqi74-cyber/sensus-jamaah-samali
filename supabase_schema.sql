@@ -31,6 +31,19 @@ create table if not exists public.sensus_jamaah (
   updated_at timestamptz not null default now()
 );
 
+-- Kolom Sensus Jamaah yang dipakai Portal Samali:
+-- kode_kelg = KODE KK
+-- pref      = PREF / GELAR
+-- nama      = NAMA
+-- lp        = L/P
+-- ttl       = TTL
+-- umur      = UMUR
+-- status_bk = STATUS HUBUNGAN
+-- status    = STATUS
+-- alamat    = ALAMAT RUMAH
+-- telepon   = TELEPON
+-- ket       = KETERANGAN
+
 -- Realtime
 alter table public.kegiatan replica identity full;
 alter table public.sensus_jamaah replica identity full;
@@ -56,6 +69,12 @@ END $$;
 -- Setelah Supabase Auth siap, ganti policy ini dengan policy berbasis user/role.
 alter table public.kegiatan enable row level security;
 alter table public.sensus_jamaah enable row level security;
+
+-- Hak akses tabel untuk browser melalui Supabase publishable/anon key.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on table public.kegiatan to anon, authenticated;
+grant select, insert, update, delete on table public.sensus_jamaah to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
 
 drop policy if exists "samali_kegiatan_select" on public.kegiatan;
 drop policy if exists "samali_kegiatan_insert" on public.kegiatan;
