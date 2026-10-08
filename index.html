@@ -8917,9 +8917,33 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style id="samali-final-layout-fix">.samali-rekap-period{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:20px!important;flex-wrap:nowrap!important}.samali-rekap-period-copy{flex:1 1 auto!important;min-width:0!important}.samali-rekap-period-controls{flex:0 0 auto!important;align-items:center!important;justify-content:flex-end!important}.samali-detail-portal-header{flex-direction:row!important;align-items:center!important;justify-content:space-between!important;text-align:left!important;gap:18px!important}.samali-detail-portal-copy{align-items:flex-start!important;text-align:left!important;min-width:0!important}.samali-detail-portal-tabs{margin-top:0!important;flex:0 0 auto!important;justify-content:flex-end!important}main,#mainContentArea{width:100%;min-width:0}#mainContentArea>*{max-width:100%;min-width:0}@media(max-width:700px){.samali-rekap-period{flex-direction:column!important;align-items:stretch!important}.samali-rekap-period-controls{justify-content:flex-start!important}.samali-detail-portal-header{flex-direction:column!important;align-items:stretch!important}.samali-detail-portal-tabs{width:100%!important;margin-top:8px!important}.samali-detail-portal-tabs button{flex:1 1 0!important}}</style>
+<style id="samali-light-readability-fixes">
+html:not(.dark) .dashboard-detail-stat-card{background:#fff!important;border-color:#e2e8f0!important}
+html:not(.dark) .dashboard-detail-stat-card .text-white{color:#0f172a!important}
+html:not(.dark) .dashboard-detail-stat-card select{background:#fff!important;border-color:#cbd5e1!important;color:#0f172a!important}
+html:not(.dark) .dashboard-detail-wrapper{background:#fff!important;border-color:#e2e8f0!important}
+html:not(.dark) .dashboard-detail-header{border-color:#e2e8f0!important}
+html:not(.dark) .dashboard-detail-header .text-white{color:#0f172a!important}
+html:not(.dark) .dashboard-detail-tabs button.bg-slate-800{background:#f1f5f9!important;color:#475569!important}
+html:not(.dark) [data-age-category-card]{box-shadow:0 8px 22px rgba(15,23,42,.06)}
+html:not(.dark) [data-age-category-card] .samali-age-count,html:not(.dark) [data-age-category-card] .samali-age-label{color:#0f172a!important}
+html:not(.dark) [data-age-category-card] .samali-age-range{color:#64748b!important}
+html:not(.dark) [data-age-category-card] .samali-age-detail{background:#fff!important;color:#334155!important;border-color:#cbd5e1!important}
+html:not(.dark) .samali-copy-btn{background:#fff!important;color:#334155!important;border-color:#cbd5e1!important;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+html:not(.dark) .samali-copy-btn:hover{background:#ecfdf5!important;color:#047857!important;border-color:#86efac!important}
+</style>
+
+<style id="samali-user6-light-fixes">
+html:not(.dark) .samali-copy-btn, body.theme-light .samali-copy-btn{background:#ffffff!important;color:#334155!important;border-color:#cbd5e1!important;box-shadow:0 1px 2px rgba(15,23,42,.06)!important}
+html:not(.dark) .samali-copy-btn:hover, body.theme-light .samali-copy-btn:hover{background:#ecfdf5!important;color:#047857!important;border-color:#86efac!important}
+html:not(.dark) .dashboard-detail-stat-card{background:#ffffff!important;border-color:#e2e8f0!important}
+html:not(.dark) .dashboard-detail-stat-card .text-white{color:#0f172a!important}
+html:not(.dark) .dashboard-detail-stat-card .text-slate-400{color:#64748b!important}
+html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;color:#0f172a!important;border-color:#cbd5e1!important}
+</style>
 </head>
 <script id="samali-supabase-bootstrap">
-(function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false}});})();
+(function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});})();
 </script>
 <body class="bg-slate-950 text-slate-100 font-sans h-screen w-screen overflow-hidden flex flex-col">
 <!-- Animated custom cursor: kept inside BODY for reliable rendering -->
@@ -9226,6 +9250,19 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // ==================== USIA OTOMATIS ====================
         // Mengambil tanggal lahir dari field TTL dan menghitung usia berdasarkan tanggal hari ini.
         // Jika tanggal lahir belum tersedia/valid, nilai umur yang tersimpan tetap digunakan.
+        function splitBirthPlaceDate(ttl) {
+            const raw=String(ttl||'').trim();
+            if(!raw) return {place:'',date:''};
+            const m=raw.match(/^(.*?)[,;\-–—]\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s*$/);
+            if(m) return {place:m[1].trim().replace(/[\s,;]+$/,''),date:m[2].trim()};
+            const d=raw.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+            return d ? {place:raw.slice(0,d.index).replace(/[\s,;–—-]+$/,'').trim(),date:d[0]} : {place:raw,date:''};
+        }
+        function combineBirthPlaceDate(place,date){
+            const p=String(place||'').trim(),d=String(date||'').trim();
+            return p&&d ? `${p}, ${d}` : (p||d);
+        }
+
         function extractBirthDate(ttl) {
             const text = String(ttl || '').trim();
             if (!text) return null;
@@ -9439,17 +9476,17 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             try{document.execCommand('copy')}catch(e){} ta.remove();
         }
         function getSensusCopyRows(rows=mockJamaah){
-            return rows.map((r,i)=>[i+1,r.kodeKelg||'',r.pref||'',r.nama||'',r.lp||'',r.ttl||'',getCurrentAge(r)??r.umur??'',r.statusBk||'',r.status||'',r.alamat||'',r.telepon||'',r.ket||'']);
+            return rows.map((r,i)=>[i+1,r.kodeKelg||'',r.pref||'',r.nama||'',r.lp||'',splitBirthPlaceDate(r.ttl).place||'',splitBirthPlaceDate(r.ttl).date||'',getCurrentAge(r)??r.umur??'',r.statusBk||'',r.status||'',r.alamat||'',r.telepon||'',r.ket||'']);
         }
         function copySensusSummary(){
             const lines=['RINGKASAN SENSUS JAMAAH BERDASARKAN USIA',''];
             Object.entries(ageCategoryMeta).forEach(([key,meta])=>lines.push(`${meta.label}: ${getAgeCategoryCount(key)} jamaah (${meta.range})`));
             copyTextWithToast(lines.join('\n'),'Ringkasan sensus berhasil disalin');
         }
-        function copySensusPerson(id){const w=mockJamaah.find(x=>String(x.id)===String(id));if(!w)return;const rows=[['No',w.no||'-'],['Kode KK',w.kodeKelg||'-'],['Gelar',w.pref||'-'],['Nama Lengkap',w.nama||'-'],['L/P',w.lp||'-'],['Tempat / Tgl Lahir',w.ttl||'-'],['Usia',getCurrentAge(w)],['Status Hubungan',w.statusBk||'-'],['Status',w.status||'-'],['Alamat',w.alamat||'-'],['Telepon',w.telepon||'-'],['Keterangan',w.ket||'-']];copyTextWithToast(rows.map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');}
+        function copySensusPerson(id){const w=mockJamaah.find(x=>String(x.id)===String(id));if(!w)return;const rows=[['No',w.no||'-'],['Kode KK',w.kodeKelg||'-'],['Gelar',w.pref||'-'],['Nama Lengkap',w.nama||'-'],['L/P',w.lp||'-'],['Tempat Lahir',splitBirthPlaceDate(w.ttl).place||'-'],['Tanggal Lahir',splitBirthPlaceDate(w.ttl).date||'-'],['Usia',getCurrentAge(w)],['Status Hubungan',w.statusBk||'-'],['Status',w.status||'-'],['Alamat',w.alamat||'-'],['Telepon',w.telepon||'-'],['Keterangan',w.ket||'-']];copyTextWithToast(rows.map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');}
 
         function copySensusTable(){
-            const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat / Tgl Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
+            const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat Lahir','Tanggal Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
             const rows=getSensusCopyRows();
             copyTextWithToast([headers,...rows].map(r=>r.map(v=>String(v).replace(/\t/g,' ')).join('\t')).join('\n'),'Data jamaah berhasil disalin');
         }
@@ -9484,7 +9521,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
     const jsPDF=await loadSamaliJsPdf();
     const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',putOnlyUsedFonts:true,compress:true});
     const rows=getSensusCopyRows();
-    const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat / Tgl Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
+    const headers=['No','Kode KK','Gelar','Nama Lengkap','L/P','Tempat Lahir','Tanggal Lahir','Usia','Status Hubungan','Status','Alamat Domisili','No. Telepon','Keterangan'];
     const margin=8,pageW=297,pageH=210;
     const palette = theme === 'dark' ? { page:'#0f172a', header:'#047857', headerText:'#ffffff', head:'#1e293b', border:'#475569', text:'#e2e8f0', muted:'#94a3b8' } : { page:'#ffffff', header:'#059669', headerText:'#ffffff', head:'#f1f5f9', border:'#cbd5e1', text:'#1e293b', muted:'#64748b' };
     const widths=[8,18,15,34,9,32,10,25,23,38,25,32];
@@ -9576,7 +9613,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 <div class="mb-5">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                         <div>
-                            <div class="flex items-center gap-2"><h4 class="text-sm font-bold text-white">Ringkasan Sensus Jamaah Berdasarkan Usia</h4><button type="button" onclick="copySensusSummary()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] font-semibold text-slate-300"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Data</button></div>
+                            <div class="flex items-center gap-2"><h4 class="text-sm font-bold text-white">Ringkasan Sensus Jamaah Berdasarkan Usia</h4><button type="button" onclick="copySensusSummary()" class="samali-copy-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold transition-all"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Data</button></div>
                             <p class="text-[11px] text-slate-500">Pilih kategori untuk melihat detail jamaah.</p>
                         </div>
                         <div class="flex items-center gap-2">
@@ -9610,21 +9647,11 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
         // Complete Jamaah Database (93 Rows)
         // Sensus Jamaah bersumber dari sheet "sensus jamaah samali (3)" (93 sensus jamaah).
-        let jamaahPhotos = {};
-
-        function saveJamaahPhotos() {
-            try { localStorage.setItem('samali_jamaah_photos_v1', JSON.stringify(jamaahPhotos)); } catch (e) {}
-        }
-
         let mockJamaah = [];
 
         // Data jamaah yang ditampilkan wajib berasal dari sumber data.
         // Array lama di atas hanya peninggalan kompatibilitas dan tidak digunakan sebagai sumber tampilan.
         mockJamaah = [];
-
-        function cacheSensusData() {
-            try { localStorage.setItem(SENSUS_CACHE_KEY, JSON.stringify(mockJamaah)); } catch (e) {}
-        }
 
         let sensusDataPromise = null;
         let sensusDataLoaded = false;
@@ -9680,11 +9707,16 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             sensusDataPromise = (async () => {
                 try {
                     if (!window.samaliDb) throw new Error('Data jamaah belum dapat dimuat.');
-                    const { data, error } = await window.samaliDb
+                    let data, error;
+                    ({ data, error } = await window.samaliDb
                         .from('sensus_jamaah')
                         .select('*')
                         .order('no', { ascending: true })
-                        .order('id', { ascending: true });
+                        .order('id', { ascending: true }));
+                    if (error) {
+                        console.warn('Query Sensus dengan order gagal, mencoba query dasar:', error);
+                        ({ data, error } = await window.samaliDb.from('sensus_jamaah').select('*'));
+                    }
                     if (error) throw error;
 
                     const serverData = (data || []).map((row, index) => ({
@@ -9753,48 +9785,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // Hitung ulang usia berdasarkan tanggal lahir saat data pertama kali dimuat.
         refreshAllCalculatedAges();
 
-        // Login memakai JSONP agar tidak terganggu redirect/CORS Web App Google Apps Script.
-        function serverLoginGet(email, password, timeoutMs = 4500) {
-            return new Promise((resolve, reject) => {
-                const callbackName = `samaliLoginJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-                const qs = new URLSearchParams({
-                    action: 'loginUser',
-                    email: String(email || ''),
-                    password: String(password || ''),
-                    callback: callbackName,
-                    _: String(Date.now())
-                });
-                const script = document.createElement('script');
-                let settled = false;
-                const cleanup = () => {
-                    settled = true;
-                    try { delete window[callbackName]; } catch (e) {}
-                    script.remove();
-                    clearTimeout(timer);
-                };
-                const timer = setTimeout(() => {
-                    if (!settled) {
-                        cleanup();
-                        reject(new Error('Tidak berhasil masuk. Coba lagi.'));
-                    }
-                }, timeoutMs);
-                window[callbackName] = result => {
-                    if (!settled) {
-                        cleanup();
-                        resolve(result);
-                    }
-                };
-                script.onerror = () => {
-                    if (!settled) {
-                        cleanup();
-                        reject(new Error('Tidak berhasil masuk. Coba lagi.'));
-                    }
-                };
-                script.src = `${PROFILE_API}?${qs.toString()}`;
-                script.async = true;
-                document.head.appendChild(script);
-            });
-        }
+        // Login sekarang sepenuhnya menggunakan Supabase Auth.
 
         // Login Handler
         async function handleDirectLogin() {
@@ -9817,21 +9808,19 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             lucide.createIcons();
 
             try {
-                const result = await serverLoginGet(emailInput, passwordInput);
-                if (!result || result.status !== 'success') {
-                    throw new Error(result && result.message ? result.message : 'Email atau kata sandi tidak cocok.');
-                }
-
-                const fullName = String(result.nama || '').trim() || emailInput.split('@')[0];
-                const accountStatus = String(result.statusAkun || result.accountStatus || result.role || result.jabatan || result.userStatus || '').trim();
-                await appLoginSuccess(emailInput, fullName, accountStatus);
-                if (result.no !== undefined && result.no !== null) {
-                    localStorage.setItem('samali_user_no', String(result.no));
-                }
+                if (!window.samaliDb?.auth) throw new Error('Layanan login belum siap.');
+                const {data,error}=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
+                if(error) throw new Error(error.message || 'Email atau kata sandi tidak cocok.');
+                const user=data?.user;
+                if(!user) throw new Error('Akun tidak ditemukan.');
+                const meta=user.user_metadata||{};
+                const fullName=String(meta.full_name||meta.nama||meta.name||emailInput.split('@')[0]).trim();
+                const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||'').trim();
+                await appLoginSuccess(emailInput,fullName,accountStatus);
                 showToast(`Selamat datang, ${fullName}.`, 'success');
             } catch (error) {
                 console.error('Login gagal:', error);
-                showAlertBox(error && error.message ? error.message : 'Email atau kata sandi tidak cocok.', 'error');
+                showAlertBox(error && error.message ? error.message : 'Email atau kata sandi tidak cocok. Periksa akun Supabase Auth Anda.', 'error');
             } finally {
                 btnLogin.disabled = false;
                 btnLogin.innerHTML = `<span>Masuk</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>`;
@@ -10233,10 +10222,11 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             lucide.createIcons();
         }
 
-        function handleLogout() {
+        async function handleLogout() {
             const confirmed = window.confirm('Apakah Anda yakin ingin keluar dari Website Admin?');
             if (!confirmed) return;
 
+            try { await window.samaliDb?.auth?.signOut(); } catch(e) {}
             localStorage.removeItem('samali_user_email');
             localStorage.removeItem('samali_user_name');
             localStorage.removeItem('samali_user_status');
@@ -10405,8 +10395,12 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tempat / Tanggal Lahir</label>
-                                <input type="text" id="formTtl" value="${JamaahData.ttl}" placeholder="Jakarta, 12-05-1980" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tempat Lahir</label>
+                                <input type="text" id="formTempatLahir" value="${splitBirthPlaceDate(JamaahData.ttl).place}" placeholder="Jakarta" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tanggal Lahir</label>
+                                <input type="text" id="formTanggalLahir" value="${splitBirthPlaceDate(JamaahData.ttl).date}" placeholder="12-05-1980" inputmode="numeric" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">No. Telepon / WhatsApp</label>
@@ -10465,7 +10459,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                                     <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Jenis Kelamin</div><div class="text-xs text-slate-200 mt-0.5">${gender}</div></div>
                                     <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Status</div><div class="text-xs text-slate-200 mt-0.5">${status}</div></div>
                                 </div>
-                                <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Tempat / Tanggal Lahir</div><div class="text-xs text-slate-200 mt-0.5 break-words">${formatDetailValue(jamaah.ttl)}</div></div>
+                                <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Tempat Lahir</div><div class="text-xs text-slate-200 mt-0.5 break-words">${formatDetailValue(splitBirthPlaceDate(jamaah.ttl).place)}</div></div><div><div class="text-[9px] uppercase tracking-wider text-slate-500">Tanggal Lahir</div><div class="text-xs text-slate-200 mt-0.5 break-words">${formatDetailValue(splitBirthPlaceDate(jamaah.ttl).date)}</div></div>
                                 <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Alamat Domisili</div><div class="text-xs text-slate-200 mt-0.5 break-words">${formatDetailValue(jamaah.alamat)}</div></div>
                                 <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Nomor Telepon</div><div class="text-xs text-slate-200 mt-0.5">${formatDetailValue(jamaah.telepon)}</div></div>
                                 <div><div class="text-[9px] uppercase tracking-wider text-slate-500">Keterangan</div><div class="text-xs text-slate-200 mt-0.5 break-words">${formatDetailValue(jamaah.ket)}</div></div>
@@ -10715,7 +10709,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             if (deletedIndex >= 0) mockJamaah.splice(deletedIndex, 1);
             sensusMutationVersion += 1;
             sensusLastMutationAt = Date.now();
-            refreshAllCalculatedAges(); cacheSensusData(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
+            refreshAllCalculatedAges(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
             pendingDeleteId = null;
             closeFullScreenModal();
             showToast('Data Jamaah berhasil dihapus. Perubahan sedang diproses.', 'success');
@@ -10735,7 +10729,9 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             const manualUmur = parseInt(document.getElementById('formUmur').value) || 0;
             const statusBk = document.getElementById('formStatusBk').value;
             const status = document.getElementById('formStatus').value;
-            const ttl = document.getElementById('formTtl').value.trim();
+            const tempatLahir = document.getElementById('formTempatLahir')?.value.trim() || '';
+            const tanggalLahir = document.getElementById('formTanggalLahir')?.value.trim() || '';
+            const ttl = combineBirthPlaceDate(tempatLahir, tanggalLahir);
             const calculatedUmur = calculateAgeFromBirthDate(extractBirthDate(ttl));
             const umur = calculatedUmur !== null ? calculatedUmur : manualUmur;
             const telepon = String(document.getElementById('formTelepon').value || '').trim();
@@ -10755,7 +10751,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             } else {
                 mockJamaah.push({id:Date.now(), sheetRow:0, no:finalNo, kodeKelg, pref, nama, lp, ttl, umur, statusBk, status, alamat, telepon, ket});
             }
-            refreshAllCalculatedAges(); cacheSensusData(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
+            refreshAllCalculatedAges(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
             closeFullScreenModal();
             showToast(editId !== null ? 'Data Sensus Jamaah berhasil diperbarui. Perubahan sedang diproses.' : 'Jamaah baru berhasil ditambahkan. Perubahan sedang diproses.', 'success');
 
@@ -10828,7 +10824,8 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                     <td class="px-4 py-3.5 text-xs text-center">
                         <span class="px-2 py-0.5 rounded font-bold ${w.lp === 'L' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">${w.lp}</span>
                     </td>
-                    <td class="px-4 py-3.5 text-xs text-slate-300">${w.ttl || '-'}</td>
+                    <td class="px-4 py-3.5 text-xs text-slate-300">${escapeHtml(splitBirthPlaceDate(w.ttl).place || '-')}</td>
+                    <td class="px-4 py-3.5 text-xs text-slate-300">${escapeHtml(splitBirthPlaceDate(w.ttl).date || '-')}</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 text-center">${getCurrentAge(w)} thn</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 text-center font-semibold">${w.statusBk || '-'}</td>
                     <td class="px-4 py-3.5 text-xs text-slate-300 text-center font-semibold">${w.status || '-'}</td>
@@ -10839,7 +10836,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                         <button onclick="openFullScreenModal('edit', ${w.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-colors mr-1.5" title="Edit Data">
                             <i data-lucide="edit-3" class="w-3.5 h-3.5 inline"></i> Edit
                         </button>
-                        <button onclick="copySensusPerson(${w.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-colors mr-1.5" title="Copy Data Jamaah"><i data-lucide="copy" class="w-3.5 h-3.5 inline"></i> Copy</button>
+                        <button onclick="copySensusPerson(${w.id})" class="samali-copy-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-colors mr-1.5" title="Copy Data Jamaah"><i data-lucide="copy" class="w-3.5 h-3.5 inline"></i> Copy</button>
                         <button onclick="confirmDeleteJamaah(${w.id})" class="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-600 text-rose-400 hover:text-white transition-colors" title="Hapus Data">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i> Hapus
                         </button>
@@ -10848,7 +10845,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             `).join('');
 
             if (filteredList.length === 0) {
-                rowsHtml = `<tr><td colspan="13" class="px-6 py-8 text-center text-sm text-slate-400">Tidak ada data Jamaah yang sesuai dengan pencarian atau filter.</td></tr>`;
+                rowsHtml = `<tr><td colspan="14" class="px-6 py-8 text-center text-sm text-slate-400">Tidak ada data Jamaah yang sesuai dengan pencarian atau filter.</td></tr>`;
             }
 
             tbody.innerHTML = rowsHtml;
@@ -12470,40 +12467,33 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                         </div>
                     </div>
 
-                    <div class="dashboard-statistics" style="display: flex; flex-direction: row; gap: 20px; justify-content: space-between; width: 100%; margin-bottom: 32px;">
-                        <div style="flex: 1 1 0; min-width: 0;">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Sensus Jamaah</p>
-                            <div id="dashboardSensusCount" class="text-3xl font-extrabold text-white">${mockJamaah.length} <span class="text-sm font-normal text-slate-500">Jiwa</span></div>
-                            <p class="text-[11px] text-slate-500 mt-1">Total jamaah dari 0 – Lansia</p>
-                        </div>
-                        <div style="flex: 1 1 0; min-width: 0;">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Jumlah Agenda</p>
-                            <select id="dashboardAgendaFilter" onchange="setDashboardAgendaFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-200 focus:outline-none focus:border-teal-500">
-                                <option value="today" ${dashboardAgendaFilter === 'today' ? 'selected' : ''}>Hari Ini</option>
-                                <option value="week" ${dashboardAgendaFilter === 'week' ? 'selected' : ''}>Seminggu</option>
-                                <option value="month" ${dashboardAgendaFilter === 'month' ? 'selected' : ''}>Sebulan</option>
-                            </select>
-                            <p class="text-[11px] text-slate-500 mt-1"><span id="dashboardAgendaCount">${dashboardAgendaCount}</span> Agenda · <span id="dashboardAgendaFilterLabel">${getDashboardAgendaFilterLabel()}</span></p>
-                        </div>
-                        <div style="flex: 1 1 0; min-width: 0;">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Persentase Kehadiran</p>
-                            <select id="dashboardAttendanceCategory" onchange="setDashboardAttendanceCategory(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500">
-                                ${renderCategoryOptions(dashboardAttendanceCategory)}
-                            </select>
-                            <p class="text-[11px] text-slate-500 mt-1"><span id="dashboardAttendancePercentage">${dashboardAttendancePercentage}%</span> · <span id="dashboardAttendanceCategoryLabel">${escapeHtml(dashboardAttendanceCategoryLabel)}</span></p>
-                        </div>
-                    </div>
-
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl dashboard-detail-wrapper">
                         <div class="dashboard-detail-header samali-detail-portal-header">
                             <div class="dashboard-detail-title samali-detail-portal-copy">
                                 <p class="text-sm font-bold text-white">Detail Portal</p>
-                                <p class="text-[11px] text-slate-500 mt-0.5">Klik kartu statistik di atas atau geser bagian ini untuk berpindah tampilan.</p>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Pilih ringkasan yang ingin dilihat atau geser bagian ini untuk berpindah tampilan.</p>
                             </div>
                             <div class="dashboard-detail-tabs samali-detail-portal-tabs" role="tablist" aria-label="Pilihan detail dasbor">
                                 <button type="button" data-dashboard-detail-tab="age" onclick="setDashboardDetailView('age')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Kategori Usia</button>
                                 <button type="button" data-dashboard-detail-tab="agenda" onclick="setDashboardDetailView('agenda')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Agenda</button>
                                 <button type="button" data-dashboard-detail-tab="attendance" onclick="setDashboardDetailView('attendance')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Per Jamaah</button>
+                            </div>
+                        </div>
+                        <div class="dashboard-detail-stat-grid grid grid-cols-1 md:grid-cols-3 gap-3 p-4 pb-0">
+                            <div class="dashboard-detail-stat-card rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sensus Jamaah</p>
+                                <div id="dashboardSensusCount" class="mt-1 text-2xl font-extrabold text-white">${mockJamaah.length} <span class="text-sm font-normal text-slate-400">Jiwa</span></div>
+                                <p class="text-[11px] text-slate-500 mt-1">Total jamaah dari 0 – Lansia</p>
+                            </div>
+                            <div class="dashboard-detail-stat-card rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Jumlah Agenda</p>
+                                <select id="dashboardAgendaFilter" onchange="setDashboardAgendaFilter(this.value)" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:border-teal-500"><option value="today" ${dashboardAgendaFilter === 'today' ? 'selected' : ''}>Hari Ini</option><option value="week" ${dashboardAgendaFilter === 'week' ? 'selected' : ''}>Seminggu</option><option value="month" ${dashboardAgendaFilter === 'month' ? 'selected' : ''}>Sebulan</option></select>
+                                <p class="text-[11px] text-slate-500 mt-1"><span id="dashboardAgendaCount">${dashboardAgendaCount}</span> Agenda · <span id="dashboardAgendaFilterLabel">${getDashboardAgendaFilterLabel()}</span></p>
+                            </div>
+                            <div class="dashboard-detail-stat-card rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Persentase Kehadiran</p>
+                                <select id="dashboardAttendanceCategory" onchange="setDashboardAttendanceCategory(this.value)" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500">${renderCategoryOptions(dashboardAttendanceCategory)}</select>
+                                <p class="text-[11px] text-slate-500 mt-1"><span id="dashboardAttendancePercentage">${dashboardAttendancePercentage}%</span> · <span id="dashboardAttendanceCategoryLabel">${escapeHtml(dashboardAttendanceCategoryLabel)}</span></p>
                             </div>
                         </div>
                         <div id="dashboardDetailContent" class="dashboard-detail-content dashboard-detail-enter" aria-live="polite"></div>
@@ -12570,7 +12560,8 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                                             <th class="px-3 py-3.5 text-center sticky-col-3">Gelar</th>
                                             <th class="px-3 py-3.5 sticky-col-4">Nama Lengkap</th>
                                             <th class="px-4 py-3.5 text-center">L/P</th>
-                                            <th class="px-4 py-3.5">Tempat / Tgl Lahir</th>
+                                            <th class="px-4 py-3.5">Tempat Lahir</th>
+                                            <th class="px-4 py-3.5">Tanggal Lahir</th>
                                             <th class="px-4 py-3.5 text-center">Usia</th>
                                             <th class="px-4 py-3.5 text-center">Status Hubungan</th><th class="px-4 py-3.5 text-center">Status</th>
                                             <th class="px-4 py-3.5">Alamat Domisili</th>
@@ -12666,28 +12657,30 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             const authOverlay = document.getElementById('authOverlay');
             const mainAppLayout = document.getElementById('mainAppLayout');
 
-            // Paksa status awal menjadi belum login.
-            localStorage.removeItem('samali_user_email');
-            localStorage.removeItem('samali_user_name');
+            // Login sekarang memakai Supabase Auth. Jika sesi Supabase masih aktif,
+            // pengguna langsung masuk tanpa harus mengulang login.
+            if (authOverlay) authOverlay.classList.remove('hidden');
+            if (mainAppLayout) mainAppLayout.classList.add('hidden');
 
-            // Pastikan overlay login terlihat dan seluruh aplikasi utama tersembunyi.
-            if (authOverlay) {
-                authOverlay.classList.remove('hidden');
-            }
-            if (mainAppLayout) {
-                mainAppLayout.classList.add('hidden');
-            }
-
-            // Data Sensus dimuat setelah login dan setiap kali menu Sensus Jamaah dibuka.
-            // Ini mencegah tabel tampil kosong akibat request server yang belum selesai.
-
-            // Kosongkan input agar login selalu dimulai dari kondisi baru.
             const emailInput = document.getElementById('userEmailInput');
             const passwordInput = document.getElementById('userPasswordInput');
-            if (emailInput) emailInput.value = '';
             if (passwordInput) passwordInput.value = '';
 
             lucide.createIcons();
+
+            (async()=>{
+                try{
+                    const sessionResult=await window.samaliDb?.auth?.getSession();
+                    const user=sessionResult?.data?.session?.user;
+                    if(!user) return;
+                    const meta=user.user_metadata||{};
+                    const fullName=String(meta.full_name||meta.nama||meta.name||user.email?.split('@')[0]||'Pengguna').trim();
+                    const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||'').trim();
+                    await appLoginSuccess(user.email||'',fullName,accountStatus);
+                }catch(e){
+                    console.warn('Sesi Supabase belum dapat dipulihkan:',e);
+                }
+            })();
         });
     </script>
 <script id="samali-custom-cursor-script">
