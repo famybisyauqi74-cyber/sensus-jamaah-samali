@@ -9752,7 +9752,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         refreshAllCalculatedAges();
 
         // Login memakai JSONP agar tidak terganggu redirect/CORS Web App Google Apps Script.
-        function serverLoginGet(email, password, timeoutMs = 5000) {
+        function serverLoginGet(email, password, timeoutMs = 4500) {
             return new Promise((resolve, reject) => {
                 const callbackName = `samaliLoginJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
                 const qs = new URLSearchParams({
@@ -9773,7 +9773,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 const timer = setTimeout(() => {
                     if (!settled) {
                         cleanup();
-                        reject(new Error('Data sedang dimuat...'));
+                        reject(new Error('Tidak berhasil masuk. Coba lagi.'));
                     }
                 }, timeoutMs);
                 window[callbackName] = result => {
@@ -9785,7 +9785,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 script.onerror = () => {
                     if (!settled) {
                         cleanup();
-                        reject(new Error('Data sedang dimuat...'));
+                        reject(new Error('Tidak berhasil masuk. Coba lagi.'));
                     }
                 };
                 script.src = `${PROFILE_API}?${qs.toString()}`;
@@ -9797,7 +9797,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // Login Handler
         async function handleDirectLogin() {
             const emailInput = document.getElementById('userEmailInput').value.trim();
-            const passwordInput = document.getElementById('userPasswordInput').value.trim();
+            const passwordInput = document.getElementById('userPasswordInput').value;
             const btnLogin = document.getElementById('btnLogin');
 
             if (!emailInput) {
@@ -9826,7 +9826,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 if (result.no !== undefined && result.no !== null) {
                     localStorage.setItem('samali_user_no', String(result.no));
                 }
-                showToast('Selamat datang kembali.', 'success');
+                showToast(`Selamat datang, ${fullName}.`, 'success');
             } catch (error) {
                 console.error('Login gagal:', error);
                 showAlertBox(error && error.message ? error.message : 'Email atau kata sandi tidak cocok.', 'error');
@@ -10220,8 +10220,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             // Jangan blokir masuk hanya untuk health check / Spreadsheet. Jalankan di background.
             selectMenu('Portal');
-            checkServerHealth().catch(() => false);
-            if (mockJamaah.length) { updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState(); }
+                        if (mockJamaah.length) { updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState(); }
             setTimeout(() => loadSensusJamaahFromServer(true).catch(err => console.warn('Sinkronisasi Sensus awal gagal:', err)), 150);
             loadScheduleEventsFromServer().catch(err => console.warn('Sinkronisasi Jadwal awal gagal:', err));
             loadMusyawarah().catch(err => console.warn('Sinkronisasi Musyawarah awal gagal:', err));
@@ -12808,223 +12807,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
 <script id="samali-supabase-realtime">
 (function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true)).subscribe();},1000);})();
-</script>
-</body>
-</html>onst SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
-  const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
-  if(!window.supabaseClient && window.supabase?.createClient){
-    window.supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-  }
-  const db=window.supabaseClient;
-  if(!db)return;
-
-  const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-  const normDate=v=>String(v??'').split('T')[0];
-  const mapSchedule=x=>({id:String(x.id??''),title:String(x.title??''),date:normDate(x.date),time:String(x.time??''),detail:String(x.detail??'')});
-  const MUSY_PREFIX='[MUSYAWARAH] ';
-  const mapSensus=x=>{
-    const tempat=String(x.tempat_lahir??x.tempatLahir??x.tempat??'').trim();
-    const tanggal=normDate(x.tanggal_lahir??x.tanggalLahir??x.tgl_lahir??'');
-    const ttlRaw=String(x.ttl??'').trim();
-    const ttl=ttlRaw || [tempat,tanggal].filter(Boolean).join(', ');
-    return {
-      id:String(x.id??''),
-      no:Number(x.no??0),
-      sheetRow:Number(x.sheetRow??0),
-      kodeKelg:String(x.kode_kelg??x.kode_kk??''),
-      pref:String(x.pref??''),
-      nama:String(x.nama??''),
-      lp:String(x.lp??'').toUpperCase(),
-      ttl,
-      tempatLahir:tempat,
-      tanggalLahir:tanggal,
-      umur:Number(x.umur??0),
-      statusBk:String(x.status_bk??x.statusHubungan??'').toUpperCase(),
-      status:String(x.status??''),
-      alamat:String(x.alamat??''),
-      telepon:String(x.telepon??''),
-      ket:String(x.ket??x.keterangan??'')
-    };
-  };
-
-  async function getAll(table,order='id'){
-    const all=[];const pageSize=1000;let from=0;
-    while(true){
-      const {data,error}=await db.from(table).select('*').order(order,{ascending:true}).range(from,from+pageSize-1);
-      if(error)throw error;
-      const rows=data||[];all.push(...rows);if(rows.length<pageSize)break;from+=pageSize;
-    }
-    return all;
-  }
-
-  function setScheduleData(rows){
-    const normalized=rows.map(mapSchedule).filter(x=>x.date);
-    if(typeof scheduleEvents!=='undefined') scheduleEvents=normalized;
-    window.scheduleEvents=normalized;
-    return normalized;
-  }
-
-  async function loadSchedules(){
-    try{
-      const rows=await getAll('kegiatan','id');
-      const schedules=setScheduleData(rows.filter(x=>!String(x.title??'').startsWith(MUSY_PREFIX)));
-      schedules.sort((a,b)=>(a.date+'T'+(a.time||'')).localeCompare(b.date+'T'+(b.time||'')));
-      window.renderScheduleCalendar?.();window.renderAdminPortalOnlineTables?.();window.renderPortalOnlineTables?.();window.loadTodaySchedules?.();window.renderPortalSummary?.();
-      return true;
-    }catch(e){console.error('Jadwal:',e);window.showToast?.('Tidak berhasil.','error');return false;}
-  }
-  window.loadScheduleEventsFromDatabase=loadSchedules;window.loadSchedule=loadSchedules;
-
-  window.handleSaveSchedule=async function(e,editId=null){
-    e?.preventDefault?.();
-    const title=document.getElementById('scheduleTitle')?.value.trim()||'';
-    const date=document.getElementById('scheduleDate')?.value||'';
-    const time=document.getElementById('scheduleTime')?.value||'';
-    const detail=document.getElementById('scheduleDetail')?.value.trim()||'';
-    if(!title||!date){window.showToast?.('Tidak berhasil.','error');return;}
-    try{
-      const payload={title,date,time,detail};
-      const q=(editId!==null&&editId!==undefined&&String(editId)!=='null')
-        ? db.from('kegiatan').update(payload).eq('id',editId)
-        : db.from('kegiatan').insert([payload]);
-      const {error}=await q;if(error)throw error;
-      window.closeFullScreenModal?.();await loadSchedules();window.showToast?.('Sudah bisa.','success');
-    }catch(error){console.error('Jadwal:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  window.executeDeleteSchedule=async function(id){
-    try{
-      const {error}=await db.from('kegiatan').delete().eq('id',id);if(error)throw error;
-      await loadSchedules();window.closeFullScreenModal?.();window.showToast?.('Sudah bisa.','success');
-    }catch(error){console.error('Hapus jadwal:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  async function loadSensus(){
-    try{
-      const rows=await getAll('sensus_jamaah','id');const normalized=rows.map(mapSensus);
-      if(typeof mockJamaah!=='undefined') mockJamaah=normalized;
-      window.mockJamaah=normalized;
-      if(typeof sensusItems!=='undefined') sensusItems=normalized;
-      window.sensusItems=normalized;window.sensusDataLoaded=true;
-      window.updateTableBodyOnly?.();window.updateAgeCategoryCards?.();window.updateDashboardSensusCount?.();window.updateSensusPageLoadingState?.();window.updateAccountStatusUI?.();window.renderSensus?.();window.renderAgeSummary?.();window.renderPortalSummary?.();
-      return true;
-    }catch(error){console.error('Sensus:',error);window.showToast?.('Tidak berhasil.','error');return false;}
-  }
-  window.loadSensusJamaahFromServer=loadSensus;window.loadSensus=loadSensus;
-
-  function sensusPayloadFromForm(){
-    const v=id=>document.getElementById(id)?.value?.trim?.()||'';
-    const tempat=v('formTempatLahir'),tanggal=v('formTanggalLahir');
-    const payload={
-      kode_kelg:v('formKodeKelg'),pref:v('formPref'),nama:v('formNama'),lp:document.getElementById('formLp')?.value||'',
-      umur:Number(v('formUmur'))||0,status_bk:document.getElementById('formStatusBk')?.value||'',status:document.getElementById('formStatus')?.value||'',
-      alamat:v('formAlamat'),telepon:v('formTelepon'),ket:v('formKet')||v('formKeterangan')
-    };
-    const ttl=v('formTtl');
-    if(ttl) payload.ttl=ttl;
-    if(tempat) payload.tempat_lahir=tempat;
-    if(tanggal) payload.tanggal_lahir=tanggal;
-    return payload;
-  }
-
-  window.handleSaveJamaahForm=async function(e,editId){
-    e?.preventDefault?.();
-    try{
-      const payload=sensusPayloadFromForm();
-      const q=(editId!==null&&editId!==undefined&&String(editId)!=='null')
-        ? db.from('sensus_jamaah').update(payload).eq('id',editId)
-        : db.from('sensus_jamaah').insert([payload]);
-      const {error}=await q;if(error)throw error;
-      window.closeFullScreenModal?.();await loadSensus();window.showToast?.('Sudah bisa.','success');
-    }catch(error){console.error('Sensus:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  window.executeDeleteJamaah=async function(){
-    const id=typeof pendingDeleteId!=='undefined'?pendingDeleteId:window.pendingDeleteId;
-    if(id===null||id===undefined)return;
-    try{
-      const {error}=await db.from('sensus_jamaah').delete().eq('id',id);if(error)throw error;
-      if(typeof pendingDeleteId!=='undefined')pendingDeleteId=null;window.pendingDeleteId=null;window.closeFullScreenModal?.();await loadSensus();window.showToast?.('Sudah bisa.','success');
-    }catch(error){console.error('Hapus sensus:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  async function loadMusyawarahSupabase(){
-    try{
-      const rows=await getAll('kegiatan','id');
-      musyawarahItems=rows.filter(x=>String(x.title??'').startsWith(MUSY_PREFIX)).map(x=>({id:String(x.id),date:normDate(x.date),title:String(x.title).slice(MUSY_PREFIX.length),content:String(x.detail??'')}));
-      musyawarahItems.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-      window.renderMusyawarahList?.();window.renderAdminPortalOnlineTables?.();return true;
-    }catch(error){console.error('Musyawarah:',error);window.showToast?.('Tidak berhasil.','error');return false;}
-  }
-  window.loadMusyawarah=loadMusyawarahSupabase;
-
-  window.saveMusyawarahEntry=async function(){
-    const date=document.getElementById('musyawarahDate')?.value||'',title=document.getElementById('musyawarahTitle')?.value.trim()||'',editor=document.getElementById('musyawarahEditor');
-    const content=editor?sanitizeClientRichHtml(editor.innerHTML):'';
-    if(!date||!title||!editor||!editor.innerText.trim()){window.showToast?.('Tidak berhasil.','error');return;}
-    const btn=document.getElementById('musyawarahSaveBtn');const isEditing=musyawarahEditingId!==null&&musyawarahEditingId!==undefined&&String(musyawarahEditingId)!=='null';if(btn)btn.disabled=true;
-    try{
-      const payload={title:MUSY_PREFIX+title,date,time:'',detail:content};
-      const q=isEditing
-        ? db.from('kegiatan').update(payload).eq('id',musyawarahEditingId)
-        : db.from('kegiatan').insert([payload]);
-      const {error}=await q;if(error)throw error;
-      await loadMusyawarahSupabase();clearMusyawarahForm();window.showToast?.('Sudah bisa.','success');
-    }catch(error){console.error('Simpan musyawarah:',error);window.showToast?.('Tidak berhasil.','error');}
-    finally{if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> '+(isEditing?'Simpan Perubahan':'Simpan Hasil');lucide.createIcons();syncMusyawarahForm();}}
-  };
-
-  window.deleteMusyawarahEntry=async function(id){
-    if(!(await samaliConfirmDelete('Apakah Anda yakin ingin menghapus catatan ini?')))return;
-    try{const {error}=await db.from('kegiatan').delete().eq('id',id);if(error)throw error;musyawarahSelected.delete(String(id));await loadMusyawarahSupabase();window.showToast?.('Sudah bisa.','success');}
-    catch(error){console.error('Hapus musyawarah:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  window.deleteSelectedMusyawarah=async function(){
-    const ids=[...musyawarahSelected];if(!ids.length)return;
-    if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus ${ids.length} catatan yang dipilih?`)))return;
-    try{for(const id of ids){const {error}=await db.from('kegiatan').delete().eq('id',id);if(error)throw error;}musyawarahSelected.clear();await loadMusyawarahSupabase();window.showToast?.('Sudah bisa.','success');}
-    catch(error){console.error('Hapus musyawarah:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  window.deleteAllMusyawarah=async function(){
-    if(!musyawarahItems.length)return;
-    if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus semua ${musyawarahItems.length} catatan hasil musyawarah?`)))return;
-    try{const rows=await getAll('kegiatan','id');for(const row of rows.filter(x=>String(x.title??'').startsWith(MUSY_PREFIX))){const {error}=await db.from('kegiatan').delete().eq('id',row.id);if(error)throw error;}musyawarahSelected.clear();await loadMusyawarahSupabase();window.showToast?.('Sudah bisa.','success');}
-    catch(error){console.error('Hapus semua musyawarah:',error);window.showToast?.('Tidak berhasil.','error');}
-  };
-
-  let scheduleChannel=null,sensusChannel=null;
-  function startRealtime(){
-    if(!scheduleChannel){scheduleChannel=db.channel('samali-kegiatan-realtime').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>{loadSchedules();loadMusyawarahSupabase();}).subscribe();}
-    if(!sensusChannel){sensusChannel=db.channel('samali-sensus-realtime').on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensus()).subscribe();}
-  }
-  window.startSamaliSupabaseRealtime=startRealtime;
-
-  const css=document.createElement('style');css.textContent=`
-    html,body,#mainAppLayout,main,#mainContentArea{min-width:0;width:100%;max-width:none;}
-    #mainContentArea{box-sizing:border-box;}
-    #mainContentArea .max-w-7xl,#mainContentArea .max-w-6xl,#mainContentArea .max-w-5xl{max-width:none!important;width:100%!important;}
-    #mainContentArea>*{min-width:0;max-width:100%;}
-    .samali-responsive-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;width:100%;}
-    .samali-responsive-row>*{min-width:0;max-width:100%;}
-    .samali-responsive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1rem;width:100%;}
-    #pageJadwal,#pageRekap,#pageAbsen,#pageMusyawarah{min-width:0;width:100%;}
-    #pageJadwal .overflow-x-auto,#pageRekap .overflow-x-auto,#pageAbsen .overflow-x-auto,#pageMusyawarah .overflow-x-auto{max-width:100%;}
-    #pageSensus input,#pageSensus textarea,#pageSensus select{max-width:100%;box-sizing:border-box;text-align:right;}
-    #pageSensus input::placeholder,#pageSensus textarea::placeholder{text-align:right;}
-    #mainContentArea .rounded-2xl,#mainContentArea .rounded-3xl{transition:transform .24s cubic-bezier(.22,1,.36,1),box-shadow .24s ease,border-color .24s ease;}
-    #mainContentArea .rounded-2xl:hover,#mainContentArea .rounded-3xl:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.12);}
-    #mainContentArea button:not(:disabled){transition:transform .18s ease,box-shadow .2s ease,filter .2s ease;}
-    #mainContentArea button:not(:disabled):hover{filter:brightness(1.04);box-shadow:0 8px 18px rgba(15,23,42,.14);}
-    @keyframes samaliPanelIn{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
-    #mainContentArea .page:not(.hidden){animation:samaliPanelIn .28s cubic-bezier(.22,1,.36,1) both;}
-    @media(max-width:700px){.samali-responsive-row{flex-direction:column}.samali-responsive-row>*{width:100%!important}.samali-responsive-grid{grid-template-columns:1fr}#mainContentArea{padding-left:0!important;padding-right:0!important}}
-    @media(prefers-reduced-motion:reduce){#mainContentArea .rounded-2xl,#mainContentArea .rounded-3xl,#mainContentArea .page{animation:none!important;transition:none!important}}
-  `;document.head.appendChild(css);
-
-  document.addEventListener('DOMContentLoaded',async()=>{startRealtime();await Promise.allSettled([loadSchedules(),loadSensus(),loadMusyawarahSupabase()]);});
-})();
 </script>
 </body>
 </html>
