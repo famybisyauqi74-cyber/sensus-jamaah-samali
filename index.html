@@ -9235,7 +9235,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         let ageCategoryFilter = '';
 
         // ==================== USIA OTOMATIS ====================
-        // Mengambil tanggal lahir dari field TTL dan menghitung usia berdasarkan tanggal hari ini.
+        // Mengambil tanggal lahir dari kolom TGL LAHIR dan menghitung usia berdasarkan tanggal hari ini.
         // Jika tanggal lahir belum tersedia/valid, nilai umur yang tersimpan tetap digunakan.
         function extractBirthDate(ttl) {
             const text = String(ttl || '').trim();
@@ -9719,6 +9719,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 lp: String(row?.["L/P"] ?? '').trim().toUpperCase(),
                 tempatLahir: String(row?.["TEMPAT LAHIR"] ?? '').trim() || '-',
                 tglLahir: tglLahir || '-',
+                ["TGL LAHIR"]: tglLahir || '',
                 umur: parseInt(row?.["UMUR"], 10) || 0,
                 statusBk: String(row?.["STATUS HUBUNGAN"] ?? '').trim().toUpperCase() || '-',
                 status: String(row?.["STATUS"] ?? '').trim() || '-',
@@ -10831,9 +10832,18 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             if (!nama) { showToast('Nama Lengkap wajib diisi.', 'error'); return; }
 
             const row = {
-                no: finalNo, kode_kelg: kodeKelg, pref, nama, lp, ttl, umur,
-                status_bk: statusBk, status, alamat, telepon, ket,
-                updated_at: new Date().toISOString()
+                ["NO. JAMAAH"]: finalNo,
+                ["KODE KELG."]: kodeKelg,
+                ["GELAR"]: pref,
+                ["NAMA"]: nama,
+                ["L/P"]: lp,
+                ["TGL LAHIR"]: cleanSensusBirthDate(ttl),
+                ["UMUR"]: umur,
+                ["STATUS HUBUNGAN"]: statusBk,
+                ["STATUS"]: status,
+                ["ALAMAT RUMAH"]: alamat,
+                ["TELEPON"]: telepon,
+                ["KET"]: ket
             };
 
             let data, error;
@@ -12469,17 +12479,34 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             </div>`).join('');
         }
 
+        function cleanSensusBirthDate(value) {
+            if (value === null || value === undefined) return '';
+            const text = String(value).trim();
+            if (!text) return '';
+            return text.includes('T') ? text.split('T')[0] : text.slice(0, 10);
+        }
+
+        function getSensusBirthDate(item) {
+            if (!item) return '';
+            // Sumber utama wajib kolom Supabase: TGL LAHIR.
+            const raw = item["TGL LAHIR"];
+            if (raw !== undefined && raw !== null) return cleanSensusBirthDate(raw);
+            // Fallback hanya untuk objek RAM hasil normalisasi lama.
+            return cleanSensusBirthDate(item.tglLahir);
+        }
+
         function dismissMissingBirthDateAlert(){
-            try { localStorage.setItem('samali_missing_birthdate_ack_v1', String(Date.now())); } catch(e) {}
             renderMissingBirthDateAlerts();
         }
 
         function renderMissingBirthDateAlerts(targetId='dashboardMissingBirthDateAlerts') {
             const box=document.getElementById(targetId); if(!box) return;
-            let dismissed=false; try { dismissed=!!localStorage.getItem('samali_missing_birthdate_ack_v1'); } catch(e) {}
-            const missing=(mockJamaah||[]).filter(j=>!extractBirthDate(j.ttl));
-            if(!missing.length || dismissed){ box.innerHTML=''; return; }
-            const names=missing.slice(0,5).map(j=>escapeHtml(j.nama||`No. ${j.no||'-'}`)).join(', ');
+            const missing=(mockJamaah||[]).filter(item=>{
+                const tanggal = getSensusBirthDate(item);
+                return !tanggal || tanggal === '-' || !/^\d{4}-\d{2}-\d{2}$/.test(tanggal);
+            });
+            if(!missing.length){ box.innerHTML=''; return; }
+            const names=missing.slice(0,5).map(item=>escapeHtml(item.nama||item["NAMA"]||`No. ${item.no||item["NO. JAMAAH"]||'-'}`)).join(', ');
             const more=missing.length>5?` dan ${missing.length-5} lainnya`:'';
             box.innerHTML=`<div class="samali-overdue-alert flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-950/35 px-4 py-3 text-amber-100 shadow-lg"><span class="shrink-0 mt-0.5 text-lg">⚠️</span><div class="min-w-0 flex-1"><div class="text-xs font-extrabold">Belum memberi tanggal lahir</div><div class="text-xs text-amber-200/90 mt-0.5">${missing.length} jamaah belum memiliki tanggal lahir, sehingga umur tidak dapat diperbarui otomatis.</div><div class="text-[10px] text-amber-300/80 mt-1">${names}${more}</div></div><button type="button" onclick="dismissMissingBirthDateAlert()" class="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/20 text-xs font-bold">Tutup</button></div>`;
         }
@@ -12917,30 +12944,3 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 `);
     if(window.lucide?.createIcons) window.lucide.createIcons();
   }
-  window.samaliConfirmDelete=function(message='Apakah Anda yakin ingin menghapus catatan ini?'){
-    ensureDeleteModal();
-    const overlay=document.getElementById('samaliDeleteConfirmOverlay');
-    const text=document.getElementById('samaliDeleteConfirmText');
-    const yes=document.getElementById('samaliDeleteConfirm');
-    const no=document.getElementById('samaliDeleteCancel');
-    text.textContent=message;
-    overlay.classList.add('is-open');overlay.setAttribute('aria-hidden','false');
-    return new Promise(resolve=>{
-      let done=false;
-      const finish=value=>{if(done)return;done=true;overlay.classList.remove('is-open');overlay.setAttribute('aria-hidden','true');setTimeout(()=>resolve(value),80)};
-      yes.onclick=()=>finish(true);no.onclick=()=>finish(false);
-      overlay.onclick=e=>{if(e.target===overlay)finish(false)};
-      const key=e=>{if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}};
-      document.addEventListener('keydown',key);
-    });
-  };
-  window.samaliAnimateRemove=function(elements,done){
-    const nodes=[...elements].filter(Boolean);if(!nodes.length){if(done)done();return;}
-    nodes.forEach(n=>n.classList.add('samali-delete-fade'));
-    setTimeout(()=>{nodes.forEach(n=>n.remove());if(done)done()},250);
-  };
-})();
-</script>
-
-</body>
-</html>
