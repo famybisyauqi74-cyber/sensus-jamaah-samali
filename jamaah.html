@@ -8421,6 +8421,25 @@ function gantiAkunDariBlokir(){
    KIRIM FORM SENSUS KE GOOGLE APPS SCRIPT
 ========================================================= */
 
+function normalizeSensusRecord(item, index = 0){
+  const umur = parseInt(item?.UMUR, 10) || 0;
+  return {
+    id: item?.id ?? index + 1,
+    no: item?.no ?? item?.id ?? index + 1,
+    kodeKelg: String(item?.["KODE KELG."] ?? '').trim(),
+    nama: String(item?.NAMA ?? '').trim(),
+    lp: String(item?.["L/P"] ?? '').trim().toUpperCase(),
+    umur,
+    alamat: String(item?.["ALAMAT RUMAH"] ?? '').trim(),
+    gelar: String(item?.GELAR ?? '').trim(),
+    ttl: String(item?.TTL ?? '').trim(),
+    status: String(item?.STATUS ?? '').trim(),
+    statusBk: String(item?.["STATUS HUBUNGAN"] ?? '').trim(),
+    telepon: String(item?.TELEPON ?? '').trim(),
+    keterangan: String(item?.KETERANGAN ?? '').trim()
+  };
+}
+
 async function submitFormSensus(event){
 
   event.preventDefault();
@@ -8482,9 +8501,9 @@ async function submitFormSensus(event){
     if(checkResult.status !== 'success' || !Array.isArray(checkResult.data)){
       throw new Error('Data belum dapat diperiksa.');
     }
-    const duplicate = checkResult.data.find(function(item){
-      return normalizeIdentity(item.kodeKelg || '') === normalizedKodeKK &&
-             normalizeIdentity(item.nama || '') === normalizedNama;
+    const duplicate = checkResult.data.map(normalizeSensusRecord).find(function(item){
+      return normalizeIdentity(item.kodeKelg) === normalizedKodeKK &&
+             normalizeIdentity(item.nama) === normalizedNama;
     });
     if(duplicate){
       if(btn){ btn.disabled = false; btn.textContent = 'Kirim Data Sensus'; }
@@ -8716,9 +8735,9 @@ async function submitSignin(){
 
     const normalizedNama = normalizeIdentity(nama);
     const normalizedKodeKK = normalizeIdentity(kodeKK);
-    const found = result.data.find(function(item){
-      return normalizeIdentity(item.nama || '') === normalizedNama &&
-             normalizeIdentity(item.kodeKelg || '') === normalizedKodeKK;
+    const found = result.data.map(normalizeSensusRecord).find(function(item){
+      return normalizeIdentity(item.nama) === normalizedNama &&
+             normalizeIdentity(item.kodeKelg) === normalizedKodeKK;
     });
 
     if(!found){
@@ -8809,7 +8828,7 @@ async function syncProfileFromServer(){
       throw new Error(result.message || 'Data belum dapat diperbarui.');
     }
 
-    const data = Array.isArray(result.data) ? result.data : [];
+    const data = Array.isArray(result.data) ? result.data.map(normalizeSensusRecord) : [];
 
     const found = data.find(function(item){
       return String(item.no || '').trim() ===
