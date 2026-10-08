@@ -2,22 +2,6 @@
 
 <html lang="id">
 <head>
-<!-- Supabase Online Database -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-/* =========================================================
-   SUPABASE CONFIGURATION - ISI 2 NILAI INI
-   Jangan gunakan service_role key di browser.
-========================================================= */
-const SUPABASE_URL = 'https://eopktyqzztmmvimyedmh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
-const { createClient } = window.supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const JADWAL_TABLE = 'kegiatan';
-const SENSUS_TABLE = 'sensus_jamaah';
-const SUPABASE_READY = !SUPABASE_URL.startsWith('ISI_') && !SUPABASE_ANON_KEY.startsWith('ISI_');
-</script>
-
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Portal Samali</title>
@@ -7725,6 +7709,16 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
   html,body{cursor:auto!important}
 }
 </style>
+
+<style id="samali-final-responsive-fix">
+/* Final responsive layout: content may wrap vertically instead of shrinking at high zoom. */
+.samali-portal-row{display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;width:100%;}
+.samali-portal-row>.samali-portal-text{flex:1 1 280px;min-width:0;}
+.samali-portal-row>.samali-portal-actions{flex:0 1 auto;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:.75rem;min-width:0;}
+.samali-flex-wrap{display:flex!important;flex-wrap:wrap!important;min-width:0;width:100%;}
+.samali-flex-wrap>*{min-width:0;max-width:100%;}
+@media(max-width:700px){.samali-portal-row{flex-direction:column;align-items:stretch;}.samali-portal-actions{width:100%;}}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
 <!-- =====================================================
@@ -8053,6 +8047,7 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
 
 const scriptURL =
   'https://script.google.com/macros/s/AKfycbz9SpyhY97lSvwFlkk4Hk_5cs1M6FF_AaiJXQjV0RHAF-Lz7dpvE5OI6xinpS5f4FPm/exec';
+const SAMALI_KEGIATAN_KEY = 'samali_kegiatan';
 
 function publicJsonp(payload, timeoutMs = 15000){
   return new Promise((resolve,reject)=>{
@@ -8249,7 +8244,7 @@ function showPage(page){
   if(footer) footer.classList.toggle('hidden',!isPublic);
   try{history.replaceState(null,'','#'+page);}catch(e){}
   if(page==='beranda'){renderHomeName?.();}
-  if(page==='jadwal'){loadJadwal();}
+  if(page==='jadwal'){try{publicScheduleEvents=(JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')||[]).map(publicNormalizeScheduleEvent).filter(item=>item.date);}catch(e){publicScheduleEvents=[];} renderPublicCalendar?.();}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -8421,25 +8416,6 @@ function gantiAkunDariBlokir(){
    KIRIM FORM SENSUS KE GOOGLE APPS SCRIPT
 ========================================================= */
 
-function normalizeSensusRecord(item, index = 0){
-  const umur = parseInt(item?.UMUR, 10) || 0;
-  return {
-    id: item?.id ?? index + 1,
-    no: item?.no ?? item?.id ?? index + 1,
-    kodeKelg: String(item?.["KODE KELG."] ?? '').trim(),
-    nama: String(item?.NAMA ?? '').trim(),
-    lp: String(item?.["L/P"] ?? '').trim().toUpperCase(),
-    umur,
-    alamat: String(item?.["ALAMAT RUMAH"] ?? '').trim(),
-    gelar: String(item?.GELAR ?? '').trim(),
-    ttl: String(item?.TTL ?? '').trim(),
-    status: String(item?.STATUS ?? '').trim(),
-    statusBk: String(item?.["STATUS HUBUNGAN"] ?? '').trim(),
-    telepon: String(item?.TELEPON ?? '').trim(),
-    keterangan: String(item?.KETERANGAN ?? '').trim()
-  };
-}
-
 async function submitFormSensus(event){
 
   event.preventDefault();
@@ -8501,9 +8477,9 @@ async function submitFormSensus(event){
     if(checkResult.status !== 'success' || !Array.isArray(checkResult.data)){
       throw new Error('Data belum dapat diperiksa.');
     }
-    const duplicate = checkResult.data.map(normalizeSensusRecord).find(function(item){
-      return normalizeIdentity(item.kodeKelg) === normalizedKodeKK &&
-             normalizeIdentity(item.nama) === normalizedNama;
+    const duplicate = checkResult.data.find(function(item){
+      return normalizeIdentity(item.kodeKelg || '') === normalizedKodeKK &&
+             normalizeIdentity(item.nama || '') === normalizedNama;
     });
     if(duplicate){
       if(btn){ btn.disabled = false; btn.textContent = 'Kirim Data Sensus'; }
@@ -8735,9 +8711,9 @@ async function submitSignin(){
 
     const normalizedNama = normalizeIdentity(nama);
     const normalizedKodeKK = normalizeIdentity(kodeKK);
-    const found = result.data.map(normalizeSensusRecord).find(function(item){
-      return normalizeIdentity(item.nama) === normalizedNama &&
-             normalizeIdentity(item.kodeKelg) === normalizedKodeKK;
+    const found = result.data.find(function(item){
+      return normalizeIdentity(item.nama || '') === normalizedNama &&
+             normalizeIdentity(item.kodeKelg || '') === normalizedKodeKK;
     });
 
     if(!found){
@@ -8828,7 +8804,7 @@ async function syncProfileFromServer(){
       throw new Error(result.message || 'Data belum dapat diperbarui.');
     }
 
-    const data = Array.isArray(result.data) ? result.data.map(normalizeSensusRecord) : [];
+    const data = Array.isArray(result.data) ? result.data : [];
 
     const found = data.find(function(item){
       return String(item.no || '').trim() ===
@@ -9480,68 +9456,69 @@ function getTodayKey(){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function samaliJakartaToday(){
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  const get=t=>parts.find(x=>x.type===t)?.value||'';
-  return `${get('year')}-${get('month')}-${get('day')}`;
-}
-
-async function samaliJakartaToday(){
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  const get=t=>parts.find(x=>x.type===t)?.value||'';
-  return `${get('year')}-${get('month')}-${get('day')}`;
-}
-
-async function loadTodaySchedules(){
-  const agendaContainer=document.getElementById('portalScheduleTable');
+function loadTodaySchedules(){
+  const today=getTodayKey();
+  const box=document.getElementById('portalScheduleTable');
   const status=document.getElementById('publicScheduleStatus');
-  if(!agendaContainer)return [];
-  if(!SUPABASE_READY){agendaContainer.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Database belum dikonfigurasi</div>';return [];}
-  const today=samaliJakartaToday();
-  const {data,error}=await db.from(JADWAL_TABLE).select('*').eq('date',today).order('time',{ascending:true});
-  if(error){console.error('Supabase jadwal Jamaah:',error);if(status)status.textContent='Jadwal belum dapat dimuat';return [];}
-  const todayEvents=data||[];
-  if(status)status.textContent=todayEvents.length?`${todayEvents.length} agenda hari ini`:'Tidak ada jadwal untuk hari ini';
-  if(!todayEvents.length){agendaContainer.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';return todayEvents;}
-  const rows=todayEvents.map(event=>`<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(event.date)}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${publicEscape(event.time||'-')}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${publicEscape(event.title||'Kegiatan')}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${publicEscape(event.detail||'-')}</td></tr>`).join('');
-  agendaContainer.innerHTML=`<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
-  return todayEvents;
-}
+  let events=[];
+  try{events=JSON.parse(localStorage.getItem('samali_kegiatan'))||[]}catch(e){events=[]}
+  if(!Array.isArray(events))events=[];
 
-async function loadJadwal(){
-  if(!SUPABASE_READY){publicScheduleEvents=[];return false;}
-  const {data,error}=await db.from(JADWAL_TABLE).select('*').order('date',{ascending:true}).order('time',{ascending:true});
-  if(error){console.error('Supabase semua jadwal Jamaah:',error);return false;}
-  publicScheduleEvents=(data||[]).map(publicNormalizeScheduleEvent).filter(x=>x.date);
-  publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
-  renderPublicCalendar?.();
-  return true;
+  const todaySchedules=[];
+  for(let i=0;i<events.length;i++){
+    const item=events[i];
+    if(!item)continue;
+    const date=String(item.date??item.tanggal??'').slice(0,10);
+    if(date===today)todaySchedules.push(item);
+  }
+  todaySchedules.sort((a,b)=>String(a.time??a.waktu??'00:00').localeCompare(String(b.time??b.waktu??'00:00')));
+
+  if(status)status.textContent=todaySchedules.length?`${todaySchedules.length} agenda hari ini`:'Tidak ada jadwal untuk hari ini';
+  if(!box)return todaySchedules;
+  if(!todaySchedules.length){
+    box.innerHTML='<div class="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Tidak ada jadwal untuk hari ini</div>';
+    return todaySchedules;
+  }
+  const rows=todaySchedules.map(e=>{
+    const d=String(e.date??e.tanggal??'').slice(0,10);
+    const time=publicEscape(e.time??e.waktu??'-');
+    const title=publicEventTitle(e);
+    const detail=publicEscape(e.detail??e.keterangan??'-');
+    return `<tr class="border-t border-slate-100 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20"><td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">${publicEscape(publicFormatDate(d))}</td><td class="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">${time}</td><td class="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-300">${title}</td><td class="px-4 py-3 text-slate-500 dark:text-slate-400">${detail}</td></tr>`;
+  }).join('');
+  box.innerHTML=`<table class="w-full text-left text-sm"><thead class="bg-slate-50 dark:bg-slate-950/70"><tr><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Tanggal</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Jam</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Nama Pengajian</th><th class="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return todaySchedules;
 }
 
 function loadEvents(){return loadTodaySchedules();}
-let publicMusyawarahItems = [];
 
-async function loadPublicMusyawarah(){
-  if(!SUPABASE_READY){publicMusyawarahItems=[];return false;}
+let publicScheduleFingerprint='';
+async function loadJadwal(){
+  const raw=(()=>{try{return JSON.parse(localStorage.getItem(SAMALI_KEGIATAN_KEY)||'[]')}catch(e){return []}})();
+  const normalized=Array.isArray(raw)?raw.map(publicNormalizeScheduleEvent).filter(item=>item.date):[];
+  publicScheduleEvents=normalized;
+  publicScheduleFingerprint=JSON.stringify(normalized);
+  loadTodaySchedules();
+  return true;
+}
+
+// Sinkronisasi langsung ketika Admin mengubah localStorage pada origin yang sama.
+window.addEventListener('storage',function(event){
+  if(event.key!==SAMALI_KEGIATAN_KEY)return;
   try{
-    const {data,error}=await db.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
-    if(error)throw error;
-    publicMusyawarahItems=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:publicNormalizeDateKey(x.tanggal??''),title:String(x.judul??'Hasil Musyawarah'),content:String(x.isi??'')}));
-    if(typeof renderPublicMusyawarah==='function') renderPublicMusyawarah();
-    return true;
+    const incoming=JSON.parse(event.newValue||'[]');
+    if(!Array.isArray(incoming))return;
+    publicScheduleEvents=incoming.map(publicNormalizeScheduleEvent).filter(item=>item.date);
+    publicScheduleFingerprint=JSON.stringify(publicScheduleEvents);
+    loadTodaySchedules();
+    const status=document.getElementById('publicScheduleStatus');
+    if(status)status.textContent=publicScheduleEvents.length
+      ? `${publicScheduleEvents.length} jadwal tersedia.`
+      : 'Belum ada jadwal.';
   }catch(error){
-    console.error('Supabase Hasil Musyawarah Jamaah:',error);
-    return false;
+    console.warn('Sinkronisasi jadwal Jamaah gagal:',error);
   }
-}
-
-function startJamaahSupabaseRealtime(){
-  if(!SUPABASE_READY || window.__samaliJamaahRealtime)return;
-  window.__samaliJamaahRealtime=db.channel('jamaah-samali-realtime')
-    .on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadTodaySchedules();loadJadwal();})
-    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadPublicMusyawarah())
-    .subscribe();
-}
+});
 
 /* =========================================================
    SAAT HALAMAN DIBUKA
@@ -9559,9 +9536,6 @@ async function verifySessionAndRoute(){
   showPage(initialPage);
   renderPersonalAttendanceReference();
   loadTodaySchedules();
-  loadJadwal();
-  loadPublicMusyawarah();
-  startJamaahSupabaseRealtime();
   if(jamaahJadwalTimer){clearInterval(jamaahJadwalTimer);jamaahJadwalTimer=null;}
   return true;
 }
@@ -9586,9 +9560,6 @@ window.addEventListener('pagehide', function(){
 
 document.addEventListener('DOMContentLoaded', function(){
   loadTodaySchedules();
-  loadJadwal();
-  loadPublicMusyawarah();
-  startJamaahSupabaseRealtime();
   applyTheme(getSavedTheme());
   verifySessionAndRoute();
   const form = document.getElementById('formSensus');
@@ -9651,6 +9622,170 @@ document.addEventListener('DOMContentLoaded', function(){
     setTimeout(()=>{nodes.forEach(n=>n.remove());if(done)done()},250);
   };
 })();
+</script>
+<script id="samali-supabase-direct-fix">(function(){
+  const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
+  const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
+  if(!window.supabaseClient && window.supabase?.createClient){
+    window.supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  }
+  const db=window.supabaseClient;
+  if(!db)return;
+
+  const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  const normDate=v=>String(v??'').split('T')[0];
+  const mapSchedule=x=>({id:String(x.id??''),title:String(x.title??x.judul??x.namaKegiatan??'Kegiatan'),date:normDate(x.date??x.tanggal),time:String(x.time??x.waktu??''),detail:String(x.detail??x.keterangan??'')});
+  const mapSensus=x=>({
+    id:String(x.id??x.ID??x.no??''),
+    no:Number(x.no??x.NO??x.id??0),
+    sheetRow:Number(x.sheetRow??0),
+    kodeKelg:String(x['KODE KK']??x.kode_kk??x.kodeKelg??''),
+    pref:String(x.PREF??x.pref??x.gelar??''),
+    nama:String(x.NAMA??x.nama??''),
+    lp:String(x['L/P']??x.lp??'').toUpperCase(),
+    ttl:String(x.TTL??x.ttl??''),
+    umur:Number(x.UMUR??x.umur??0),
+    statusBk:String(x['STATUS HUBUNGAN']??x.statusHubungan??x.statusBk??'').toUpperCase(),
+    status:String(x.STATUS??x.status??''),
+    alamat:String(x['ALAMAT RUMAH']??x.alamat??''),
+    telepon:String(x.TELEPON??x.telepon??''),
+    ket:String(x.KETERANGAN??x.ket??x.keterangan??'')
+  });
+
+  async function getAll(table, order='id'){
+    const all=[]; const pageSize=1000; let from=0;
+    while(true){
+      const {data,error}=await db.from(table).select('*').order(order,{ascending:true}).range(from,from+pageSize-1);
+      if(error)throw error;
+      const rows=data||[]; all.push(...rows);
+      if(rows.length<pageSize)break;
+      from+=pageSize;
+    }
+    return all;
+  }
+
+  async function loadSchedules(){
+    try{
+      const rows=await getAll('kegiatan','id');
+      window.scheduleEvents=rows.map(mapSchedule).filter(x=>x.date);
+      window.scheduleEvents.sort((a,b)=>(a.date+'T'+(a.time||'')).localeCompare(b.date+'T'+(b.time||'')));
+      window.renderScheduleCalendar?.();
+      window.renderAdminPortalOnlineTables?.();
+      window.renderPortalOnlineTables?.();
+      window.loadTodaySchedules?.();
+      window.renderPortalSummary?.();
+      return true;
+    }catch(e){console.error('Supabase jadwal gagal dimuat:',e);window.showToast?.('Jadwal gagal dimuat: '+e.message,'error');return false;}
+  }
+  window.loadScheduleEventsFromDatabase=loadSchedules;
+  window.loadSchedule=loadSchedules;
+
+  window.handleSaveSchedule=async function(e,editId=null){
+    e?.preventDefault?.();
+    const title=document.getElementById('scheduleTitle')?.value.trim()||'';
+    const date=document.getElementById('scheduleDate')?.value||'';
+    const time=document.getElementById('scheduleTime')?.value||'';
+    const detail=document.getElementById('scheduleDetail')?.value.trim()||'';
+    if(!title||!date){window.showToast?.('Nama kegiatan dan tanggal wajib diisi.','error');return;}
+    const payload={title,date,time,detail};
+    try{
+      let q;
+      if(editId!==null&&editId!==undefined){q=db.from('kegiatan').update(payload).eq('id',editId)}
+      else{q=db.from('kegiatan').insert([payload])}
+      const {error}=await q;
+      if(error)throw error;
+      window.closeFullScreenModal?.();
+      await loadSchedules();
+      alert(editId!==null&&editId!==undefined?'Jadwal berhasil diperbarui.':'Jadwal berhasil disimpan.');
+    }catch(error){console.error('Simpan jadwal Supabase:',error);alert('Jadwal gagal disimpan: '+error.message);}
+  };
+
+  window.executeDeleteSchedule=async function(id){
+    try{
+      const {error}=await db.from('kegiatan').delete().eq('id',id);
+      if(error)throw error;
+      await loadSchedules(); alert('Jadwal berhasil dihapus.');
+    }catch(error){console.error(error);alert('Jadwal gagal dihapus: '+error.message);}
+  };
+
+  async function loadSensus(){
+    try{
+      const rows=await getAll('sensus_jamaah','id');
+      const normalized=rows.map(mapSensus);
+      if(Array.isArray(window.mockJamaah)){
+        window.mockJamaah=normalized;
+        window.sensusDataLoaded=true;
+      }
+      window.updateTableBodyOnly?.();window.updateAgeCategoryCards?.();window.updateDashboardSensusCount?.();window.updateSensusPageLoadingState?.();
+      if(Array.isArray(window.sensusItems))window.sensusItems=normalized;
+      window.renderSensus?.();window.renderAgeSummary?.();window.renderPortalSummary?.();
+      return true;
+    }catch(error){console.error('Sensus Supabase gagal dimuat:',error);window.showToast?.('Data Sensus Jamaah gagal dimuat: '+error.message,'error');return false;}
+  }
+  window.loadSensusJamaahFromServer=loadSensus;
+  window.loadSensus=loadSensus;
+
+  function sensusPayloadFromForm(){
+    const v=id=>document.getElementById(id)?.value?.trim?.()||'';
+    return {
+      'KODE KK':v('formKodeKelg'),'PREF':v('formPref'),'NAMA':v('formNama'),'L/P':document.getElementById('formLp')?.value||'',
+      'TTL':v('formTtl'),'UMUR':Number(v('formUmur'))||0,'STATUS HUBUNGAN':document.getElementById('formStatusBk')?.value||'',
+      'STATUS':document.getElementById('formStatus')?.value||'','ALAMAT RUMAH':v('formAlamat'),'TELEPON':v('formTelepon'),'KETERANGAN':v('formKet')||v('formKeterangan')
+    };
+  }
+
+  window.handleSaveJamaahForm=async function(e,editId){
+    e?.preventDefault?.();
+    const payload=sensusPayloadFromForm();
+    try{
+      if(editId!==null&&editId!==undefined){
+        const {error}=await db.from('sensus_jamaah').update(payload).eq('id',editId); if(error)throw error;
+      }else{
+        const {error}=await db.from('sensus_jamaah').insert([payload]); if(error)throw error;
+      }
+      window.closeFullScreenModal?.(); await loadSensus(); alert(editId!==null&&editId!==undefined?'Data Jamaah berhasil diperbarui.':'Data Jamaah berhasil disimpan.');
+    }catch(error){console.error('CRUD Sensus Supabase:',error);alert('Data Sensus Jamaah gagal disimpan: '+error.message);}
+  };
+
+  window.executeDeleteJamaah=async function(){
+    const id=window.pendingDeleteId;
+    if(id===null||id===undefined)return;
+    try{
+      const {error}=await db.from('sensus_jamaah').delete().eq('id',id); if(error)throw error;
+      window.pendingDeleteId=null;window.closeFullScreenModal?.();await loadSensus();alert('Data Jamaah berhasil dihapus.');
+    }catch(error){console.error('Hapus Sensus Supabase:',error);alert('Data Jamaah gagal dihapus: '+error.message);}
+  };
+
+  let scheduleChannel=null,sensusChannel=null;
+  function startRealtime(){
+    if(!scheduleChannel){scheduleChannel=db.channel('samali-kegiatan-realtime').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadSchedules()).subscribe();}
+    if(!sensusChannel){sensusChannel=db.channel('samali-sensus-realtime').on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensus()).subscribe();}
+  }
+  window.startSamaliSupabaseRealtime=startRealtime;
+
+  // Responsivitas saat browser di-zoom sangat besar: child tidak boleh memaksa parent menyempit.
+  const css=document.createElement('style');
+  css.textContent=`
+    .samali-responsive-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;width:100%;}
+    .samali-responsive-row>*{min-width:0;max-width:100%;}
+    .samali-responsive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1rem;width:100%;}
+    #pageJadwal,#pageRekap,#pageAbsen,#pageMusyawarah{min-width:0;width:100%;}
+    #pageJadwal .overflow-x-auto,#pageRekap .overflow-x-auto,#pageAbsen .overflow-x-auto,#pageMusyawarah .overflow-x-auto{max-width:100%;}
+    #pageSensus input,#pageSensus textarea,#pageSensus select{max-width:100%;box-sizing:border-box;text-align:right;}
+    #pageSensus input::placeholder,#pageSensus textarea::placeholder{text-align:right;}
+    @media (max-width:700px){.samali-responsive-row{flex-direction:column;}.samali-responsive-row>*{width:100%!important;}.samali-responsive-grid{grid-template-columns:1fr;}}
+  `;
+  document.head.appendChild(css);
+
+  // Hilangkan banner pembuka Pengurus/Jamaah tanpa mengubah komponen lain.
+  document.querySelectorAll('p').forEach(p=>{if(/PORTAL (PENGURUS|JAMAAH) KELOMPOK? SAMALI/i.test(p.textContent||'')){const parent=p.closest('.rounded-3xl')||p.parentElement?.parentElement;if(parent)parent.remove();}});
+
+  document.addEventListener('DOMContentLoaded',async()=>{
+    startRealtime();
+    await Promise.allSettled([loadSchedules(),loadSensus()]);
+  });
+})();
+
 </script>
 </body>
 </html>
