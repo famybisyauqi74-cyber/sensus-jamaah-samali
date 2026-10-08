@@ -7870,15 +7870,10 @@ async function loadSchedule(isInitial=false){
   return true;
 }
 
-function startPengurusSupabaseRealtime(){
-  if(!SUPABASE_READY || window.__samaliPengurusRealtime)return;
-  window.__samaliPengurusRealtime=db.channel('pengurus-samali-realtime').on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadSchedule();loadTodaySchedules();}).on('postgres_changes',{event:'*',schema:'public',table:SENSUS_TABLE},()=>loadSensus()).subscribe();
-}
-
 function normalizeSensusRow(row,index=0){
   const rawTglLahir=String(row?.["TGL LAHIR"]??'').trim();
   const tglLahir=rawTglLahir.includes('T')?rawTglLahir.split('T')[0]:rawTglLahir;
-  return {id:String(row?.id??''),no:Number(row?.["NO. JAMAAH"]??row?.no??0)||index+1,kodeKelg:String(row?.["KODE KELG."]??'').trim(),pref:String(row?.["GELAR"]??row?.gelar??'').trim(),nama:String(row?.NAMA??'').trim(),lp:String(row?.["L/P"]??'').trim().toUpperCase(),ttl:tglLahir,umur:parseInt(row?.UMUR,10)||0,statusBk:String(row?.["STATUS HUBUNGAN"]??row?.STATUS_BK??row?.status_bk??'').trim().toUpperCase(),status:String(row?.STATUS??row?.status??'').trim(),alamat:String(row?.["ALAMAT RUMAH"]??'').trim(),telepon:String(row?.["TELEPON"]??row?.telepon??'').trim(),ket:String(row?.KET??row?.ket??row?.keterangan??'').trim()};
+  return {id:String(row?.id??''),no:Number(row?.["NO. JAMAAH"]??row?.no??0)||index+1,kodeKelg:String(row?.["KODE KELG."]??'').trim(),pref:String(row?.PREF??row?.["PREF"]??'').trim()||'-',nama:String(row?.NAMA??'').trim(),lp:String(row?.["L/P"]??'').trim().toUpperCase(),ttl:tglLahir,umur:parseInt(row?.UMUR,10)||0,statusBk:String(row?.["STATUS HUBUNGAN"]??row?.STATUS_BK??row?.status_bk??'').trim().toUpperCase(),status:String(row?.STATUS??row?.status??'').trim(),alamat:String(row?.["ALAMAT RUMAH"]??'').trim(),telepon:String(row?.["TELEPON"]??row?.telepon??'').trim(),ket:String(row?.KET??row?.ket??row?.keterangan??'').trim()};
 }
 
 async function loadSensus(isInitial=false){
@@ -7904,21 +7899,30 @@ async function loadSensus(isInitial=false){
 async function loadMusyawarah(isInitial=false){
   const list=document.getElementById('musyawarahList');
   if(isInitial&&list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Memuat data...</div>';
+  if(!SUPABASE_READY){musyawarahItems=[];renderMusyawarah();renderPortalOnlineTables();return false;}
   try{
-    const r=await apiJsonp({action:'getMusyawarah',_:`${Date.now()}`});
-    if(r.status!=='success'||!Array.isArray(r.data))throw Error(r.message||'Data musyawarah sedang dimuat');
-    const normalized=r.data.map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.date??x.tanggal??''),title:String(x.title??x.judul??'Hasil Musyawarah'),content:String(x.content??x.isi??x.keterangan??'')}));
-    const fp=stableDataFingerprint(normalized);
-    if(!isInitial&&fp===pengurusMusyawarahFingerprint)return false;
-    pengurusMusyawarahFingerprint=fp;musyawarahItems=normalized;
+    const {data,error}=await db.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
+    if(error)throw error;
+    musyawarahItems=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.tanggal??''),title:String(x.judul??'Hasil Musyawarah'),content:String(x.isi??'')}));
+    pengurusMusyawarahFingerprint=stableDataFingerprint(musyawarahItems);
     renderMusyawarah();renderPortalOnlineTables();return true;
   }catch(e){
+    console.error('Supabase musyawarah Pengurus:',e);
     if(isInitial){
-      if(list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Memuat data...</div>';
-      const p=document.getElementById('portalMusyawarahTable');if(p)p.innerHTML='<div class="p-8 text-center text-sm text-slate-500">Memuat data...</div>';
+      if(list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Data sedang dimuat...</div>';
+      const p=document.getElementById('portalMusyawarahTable');if(p)p.innerHTML='<div class="p-8 text-center text-sm text-slate-500">Data sedang dimuat...</div>';
     }
     return false;
   }
+}
+
+function startPengurusSupabaseRealtime(){
+  if(!SUPABASE_READY || window.__samaliPengurusRealtime)return;
+  window.__samaliPengurusRealtime=db.channel('pengurus-samali-realtime')
+    .on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadSchedule();loadTodaySchedules();})
+    .on('postgres_changes',{event:'*',schema:'public',table:SENSUS_TABLE},()=>loadSensus())
+    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah())
+    .subscribe();
 }
 
 function renderMusyawarah(){

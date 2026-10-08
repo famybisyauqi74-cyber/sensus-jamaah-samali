@@ -9519,9 +9519,28 @@ async function loadJadwal(){
 }
 
 function loadEvents(){return loadTodaySchedules();}
+let publicMusyawarahItems = [];
+
+async function loadPublicMusyawarah(){
+  if(!SUPABASE_READY){publicMusyawarahItems=[];return false;}
+  try{
+    const {data,error}=await db.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
+    if(error)throw error;
+    publicMusyawarahItems=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:publicNormalizeDateKey(x.tanggal??''),title:String(x.judul??'Hasil Musyawarah'),content:String(x.isi??'')}));
+    if(typeof renderPublicMusyawarah==='function') renderPublicMusyawarah();
+    return true;
+  }catch(error){
+    console.error('Supabase Hasil Musyawarah Jamaah:',error);
+    return false;
+  }
+}
+
 function startJamaahSupabaseRealtime(){
   if(!SUPABASE_READY || window.__samaliJamaahRealtime)return;
-  window.__samaliJamaahRealtime=db.channel('jamaah-samali-realtime').on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadTodaySchedules();loadJadwal();}).subscribe();
+  window.__samaliJamaahRealtime=db.channel('jamaah-samali-realtime')
+    .on('postgres_changes',{event:'*',schema:'public',table:JADWAL_TABLE},()=>{loadTodaySchedules();loadJadwal();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadPublicMusyawarah())
+    .subscribe();
 }
 
 /* =========================================================
@@ -9540,6 +9559,8 @@ async function verifySessionAndRoute(){
   showPage(initialPage);
   renderPersonalAttendanceReference();
   loadTodaySchedules();
+  loadJadwal();
+  loadPublicMusyawarah();
   startJamaahSupabaseRealtime();
   if(jamaahJadwalTimer){clearInterval(jamaahJadwalTimer);jamaahJadwalTimer=null;}
   return true;
@@ -9565,6 +9586,8 @@ window.addEventListener('pagehide', function(){
 
 document.addEventListener('DOMContentLoaded', function(){
   loadTodaySchedules();
+  loadJadwal();
+  loadPublicMusyawarah();
   startJamaahSupabaseRealtime();
   applyTheme(getSavedTheme());
   verifySessionAndRoute();

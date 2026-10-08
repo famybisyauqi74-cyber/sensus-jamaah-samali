@@ -9714,7 +9714,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 sheetRow: Number(row?.sheet_row ?? row?.sheetRow ?? 0) || 0,
                 no: String(row?.["NO. JAMAAH"] ?? '').trim() || String(index + 1),
                 kodeKelg: String(row?.["KODE KELG."] ?? '').trim(),
-                pref: String(row?.["GELAR"] ?? '').trim() || '-',
+                pref: String(row?.PREF ?? row?.["PREF"] ?? '').trim() || '-',
                 nama: String(row?.["NAMA"] ?? '').trim(),
                 lp: String(row?.["L/P"] ?? '').trim().toUpperCase(),
                 tempatLahir: String(row?.["TEMPAT LAHIR"] ?? '').trim() || '-',
@@ -10287,6 +10287,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             loadScheduleEventsFromDatabase().catch(err => console.warn('Sinkronisasi Jadwal awal gagal:', err));
             startScheduleRealtime();
             loadMusyawarah().catch(err => console.warn('Sinkronisasi Musyawarah awal gagal:', err));
+            startMusyawarahRealtime();
             // selectMenu() membuat elemen dashboard baru, jadi status akun
             // harus diisi setelah elemen tersebut tersedia.
             updateProfileHeader();
@@ -12277,58 +12278,49 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             return String(html || '').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<iframe[\s\S]*?<\/iframe>/gi,'').replace(/\\son[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)/gi,'').replace(/javascript:/gi,'');
         }
         async function loadMusyawarah() {
+            if (!SUPABASE_READY) {
+                musyawarahItems = [];
+                renderMusyawarahList();
+                renderAdminPortalOnlineTables();
+                return false;
+            }
             try {
-                const response = await fetch(`${PROFILE_API}?action=getMusyawarah&_=${Date.now()}`,{method:'GET',cache:'no-store',redirect:'follow'});
-                const result = await response.json();
-                if (result.status !== 'success' || !Array.isArray(result.data)) throw new Error(result.message || 'Data tidak dapat dimuat.');
-                musyawarahItems = result.data;
+                const { data, error } = await db
+                    .from('hasil_musyawarah')
+                    .select('*')
+                    .order('tanggal', { ascending: false })
+                    .order('id', { ascending: false });
+                if (error) throw error;
+
+                musyawarahItems = (data || []).map(item => ({
+                    id: String(item?.id ?? ''),
+                    date: String(item?.tanggal ?? '').split('T')[0],
+                    title: String(item?.judul ?? 'Hasil Musyawarah'),
+                    content: String(item?.isi ?? '')
+                }));
                 renderMusyawarahList();
                 renderAdminPortalOnlineTables();
                 return true;
             } catch(error) {
-                console.error('Gagal memuat hasil musyawarah:',error);
+                console.error('Gagal memuat hasil musyawarah dari Supabase:', error);
                 showToast('Hasil musyawarah gagal dimuat.', 'error');
                 return false;
             }
         }
-        let musyawarahSavedRange = null;
-        function rememberMusyawarahSelection(){
-            const editor=document.getElementById('musyawarahEditor'); if(!editor)return;
-            const sel=window.getSelection(); if(!sel||!sel.rangeCount)return;
-            const range=sel.getRangeAt(0); if(editor.contains(range.commonAncestorContainer)){musyawarahSavedRange=range.cloneRange();}
+
+        let musyawarahRealtimeChannel = null;
+        function startMusyawarahRealtime() {
+            if (!SUPABASE_READY || musyawarahRealtimeChannel) return;
+            musyawarahRealtimeChannel = db
+                .channel('samali-hasil-musyawarah-realtime')
+                .on('postgres_changes', {
+                    event: '*', schema: 'public', table: 'hasil_musyawarah'
+                }, () => {
+                    loadMusyawarah();
+                })
+                .subscribe(status => console.log('Supabase musyawarah realtime:', status));
         }
-        function restoreMusyawarahSelection(){
-            const editor=document.getElementById('musyawarahEditor'); if(!editor)return;
-            editor.focus();
-            if(musyawarahSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(musyawarahSavedRange);}
-        }
-        function execMusyawarah(command,value=null){
-            restoreMusyawarahSelection();
-            try{document.execCommand(command,false,value);}catch(e){console.warn('Editor command gagal:',command,e);}
-            rememberMusyawarahSelection(); syncMusyawarahToolbar(); syncMusyawarahForm();
-        }
-        function execMusyawarahLink(){
-            restoreMusyawarahSelection();
-            const url=window.prompt('Masukkan alamat tautan (https://...)');
-            if(url&&/^https?:\/\//i.test(url.trim())) execMusyawarah('createLink',url.trim());
-        }
-        function execMusyawarahBlock(tag){execMusyawarah('formatBlock',tag);}
-        function syncMusyawarahToolbar(){
-            const editor=document.getElementById('musyawarahEditor'); if(!editor)return;
-            const font=document.getElementById('musyawarahFont'),size=document.getElementById('musyawarahSize'),style=document.getElementById('musyawarahStyle');
-            if(font){try{font.value=document.queryCommandValue('fontName')||'Arial';}catch(e){}}
-            if(size){try{size.value=document.queryCommandValue('fontSize')||'3';}catch(e){}}
-            document.querySelectorAll('[data-musy-command]').forEach(btn=>{try{btn.classList.toggle('active',document.queryCommandState(btn.dataset.musyCommand));}catch(e){}});
-        }
-        async function postMusyawarah(payload){
-            const body=new URLSearchParams();
-            Object.entries(payload||{}).forEach(([key,value])=>body.append(key,value==null?'':String(value)));
-            const response=await fetch(PROFILE_API,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body.toString(),redirect:'follow',cache:'no-store'});
-            let result=null;
-            try{result=await response.json();}catch(e){throw new Error(`Server mengirim respons yang tidak dapat dibaca (HTTP ${response.status}).`);}
-            if(!response.ok)throw new Error(`HTTP ${response.status}`);
-            return result;
-        }
+
         function syncMusyawarahForm(){
             const date=document.getElementById('musyawarahDate'),title=document.getElementById('musyawarahTitle'),day=document.getElementById('musyawarahDayLabel'),editor=document.getElementById('musyawarahEditor'),save=document.getElementById('musyawarahSaveBtn');
             const hasDate=!!date?.value,hasTitle=!!title?.value.trim();
@@ -12358,17 +12350,42 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             syncMusyawarahForm();editor.focus();rememberMusyawarahSelection();window.scrollTo({top:0,behavior:'smooth'});
         }
         async function saveMusyawarahEntry(){
-            const date=document.getElementById('musyawarahDate')?.value||'',title=document.getElementById('musyawarahTitle')?.value.trim()||'',editor=document.getElementById('musyawarahEditor');
+            const date=document.getElementById('musyawarahDate')?.value||'';
+            const title=document.getElementById('musyawarahTitle')?.value.trim()||'';
+            const editor=document.getElementById('musyawarahEditor');
             const content=editor?sanitizeClientRichHtml(editor.innerHTML):'';
-            if(!date||!title||!editor||!editor.innerText.trim()){showToast('Lengkapi tanggal, nama musyawarah, dan isi catatan.','error');return;}
+            if(!date||!title||!editor||!editor.innerText.trim()){
+                showToast('Lengkapi tanggal, nama musyawarah, dan isi catatan.','error');
+                return;
+            }
             const btn=document.getElementById('musyawarahSaveBtn');
             if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan...';lucide.createIcons();}
             try{
-                const result=await postMusyawarah({action:'saveMusyawarah',id:musyawarahEditingId||'',date,title,content});
-                if(result.status!=='success'||!Array.isArray(result.items))throw new Error(result.message||'Gagal menyimpan.');
-                musyawarahItems=result.items;renderMusyawarahList();clearMusyawarahForm();showToast('Hasil musyawarah berhasil disimpan.','success');
-            }catch(error){console.error(error);showToast(`Hasil musyawarah gagal disimpan: ${error.message||'server tidak merespons.'}${String(error.message||'').includes('Action tidak dikenali')?' — server Apps Script yang aktif belum memuat action ini. Perbarui deployment Apps Script.':''}`,'error');}
-            finally{if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> Simpan Hasil';lucide.createIcons();syncMusyawarahForm();}}
+                let result;
+                if(musyawarahEditingId){
+                    result=await db.from('hasil_musyawarah').update({
+                        tanggal: date,
+                        judul: title,
+                        isi: content
+                    }).eq('id', musyawarahEditingId);
+                }else{
+                    result=await db.from('hasil_musyawarah').insert([{
+                        tanggal: date,
+                        judul: title,
+                        isi: content
+                    }]);
+                }
+                if(result.error) throw result.error;
+                await loadMusyawarah();
+                clearMusyawarahForm();
+                showToast(musyawarahEditingId ? 'Hasil musyawarah berhasil diperbarui.' : 'Hasil musyawarah berhasil disimpan.','success');
+                musyawarahEditingId=null;
+            }catch(error){
+                console.error('Supabase simpan musyawarah:',error);
+                showToast(`Hasil musyawarah gagal disimpan: ${error.message||'database tidak merespons.'}`,'error');
+            }finally{
+                if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> Simpan Hasil';lucide.createIcons();syncMusyawarahForm();}
+            }
         }
         function viewMusyawarah(id){
             const item=musyawarahItems.find(x=>String(x.id)===String(id));if(!item)return;
@@ -12379,15 +12396,47 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         }
         async function deleteMusyawarahEntry(id){
             if(!(await samaliConfirmDelete('Apakah Anda yakin ingin menghapus catatan ini?')))return;
-            try{const result=await postMusyawarah({action:'deleteMusyawarah',id});if(result.status!=='success')throw new Error(result.message||'Gagal menghapus.');musyawarahItems=Array.isArray(result.data)?result.data:[];musyawarahSelected.delete(String(id));renderMusyawarahList();showToast('Catatan berhasil dihapus.','success');}catch(error){showToast(`Catatan gagal dihapus: ${error.message||'server tidak merespons.'}`,'error');}
+            try{
+                const { error } = await db.from('hasil_musyawarah').delete().eq('id', id);
+                if(error) throw error;
+                musyawarahSelected.delete(String(id));
+                await loadMusyawarah();
+                showToast('Catatan berhasil dihapus.','success');
+            }catch(error){
+                console.error('Supabase hapus musyawarah:',error);
+                showToast(`Catatan gagal dihapus: ${error.message||'database tidak merespons.'}`,'error');
+            }
         }
         function toggleMusyawarahSelection(id,checked){if(checked)musyawarahSelected.add(String(id));else musyawarahSelected.delete(String(id));updateMusyawarahBulkBar();}
         function updateMusyawarahBulkBar(){const bar=document.getElementById('musyawarahBulkBar');if(bar)bar.classList.toggle('hidden',musyawarahSelected.size===0);const count=document.getElementById('musyawarahSelectedCount');if(count)count.textContent=musyawarahSelected.size;}
         async function deleteSelectedMusyawarah(){
-            const ids=[...musyawarahSelected];if(!ids.length)return;if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus ${ids.length} catatan yang dipilih?`)))return;
-            try{ids.forEach(id=>{const el=document.querySelector(`[data-musyawarah-id=\"${CSS.escape(String(id))}\"]`);if(el)el.classList.add('samali-delete-fade');});musyawarahItems=musyawarahItems.filter(x=>!ids.includes(String(x.id)));musyawarahSelected.clear();setTimeout(()=>renderMusyawarahList(),250);for(const id of ids){const result=await postMusyawarah({action:'deleteMusyawarah',id});if(result.status!=='success')throw new Error(result.message||'Gagal menghapus.');}showToast('Catatan yang dipilih berhasil dihapus.','success');}catch(error){showToast(`Sebagian catatan gagal dihapus: ${error.message||'server tidak merespons.'}`,'error');}
+            const ids=[...musyawarahSelected];if(!ids.length)return;
+            if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus ${ids.length} catatan yang dipilih?`)))return;
+            try{
+                const { error } = await db.from('hasil_musyawarah').delete().in('id',ids);
+                if(error) throw error;
+                musyawarahSelected.clear();
+                await loadMusyawarah();
+                showToast('Catatan yang dipilih berhasil dihapus.','success');
+            }catch(error){
+                console.error('Supabase hapus beberapa musyawarah:',error);
+                showToast(`Sebagian catatan gagal dihapus: ${error.message||'database tidak merespons.'}`,'error');
+            }
         }
-        async function deleteAllMusyawarah(){if(!musyawarahItems.length)return;if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus semua ${musyawarahItems.length} catatan hasil musyawarah?`)))return;try{const items=document.querySelectorAll('#musyawarahList > [data-musyawarah-id]');items.forEach(el=>el.classList.add('samali-delete-fade'));musyawarahItems=[];musyawarahSelected.clear();setTimeout(()=>renderMusyawarahList(),250);const result=await postMusyawarah({action:'clearMusyawarah'});if(result.status!=='success')throw new Error(result.message||'Gagal menghapus semua.');showToast('Semua catatan berhasil dihapus.','success');}catch(error){showToast(`Semua catatan gagal dihapus: ${error.message||'server tidak merespons.'}`,'error');}}
+        async function deleteAllMusyawarah(){
+            if(!musyawarahItems.length)return;
+            if(!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus semua ${musyawarahItems.length} catatan hasil musyawarah?`)))return;
+            try{
+                const { error } = await db.from('hasil_musyawarah').delete().gt('id',0);
+                if(error) throw error;
+                musyawarahSelected.clear();
+                await loadMusyawarah();
+                showToast('Semua hasil musyawarah berhasil dihapus.','success');
+            }catch(error){
+                console.error('Supabase hapus semua musyawarah:',error);
+                showToast(`Semua catatan gagal dihapus: ${error.message||'database tidak merespons.'}`,'error');
+            }
+        }
         function renderMusyawarahList(){
             const list=document.getElementById('musyawarahList'),count=document.getElementById('musyawarahCount');if(!list)return;
             if(count)count.textContent=`${musyawarahItems.length} catatan`;
@@ -12944,3 +12993,30 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 `);
     if(window.lucide?.createIcons) window.lucide.createIcons();
   }
+  window.samaliConfirmDelete=function(message='Apakah Anda yakin ingin menghapus catatan ini?'){
+    ensureDeleteModal();
+    const overlay=document.getElementById('samaliDeleteConfirmOverlay');
+    const text=document.getElementById('samaliDeleteConfirmText');
+    const yes=document.getElementById('samaliDeleteConfirm');
+    const no=document.getElementById('samaliDeleteCancel');
+    text.textContent=message;
+    overlay.classList.add('is-open');overlay.setAttribute('aria-hidden','false');
+    return new Promise(resolve=>{
+      let done=false;
+      const finish=value=>{if(done)return;done=true;overlay.classList.remove('is-open');overlay.setAttribute('aria-hidden','true');setTimeout(()=>resolve(value),80)};
+      yes.onclick=()=>finish(true);no.onclick=()=>finish(false);
+      overlay.onclick=e=>{if(e.target===overlay)finish(false)};
+      const key=e=>{if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}};
+      document.addEventListener('keydown',key);
+    });
+  };
+  window.samaliAnimateRemove=function(elements,done){
+    const nodes=[...elements].filter(Boolean);if(!nodes.length){if(done)done();return;}
+    nodes.forEach(n=>n.classList.add('samali-delete-fade'));
+    setTimeout(()=>{nodes.forEach(n=>n.remove());if(done)done()},250);
+  };
+})();
+</script>
+
+</body>
+</html>
