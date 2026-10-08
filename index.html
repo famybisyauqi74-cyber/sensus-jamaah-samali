@@ -10,7 +10,6 @@
 <link rel="manifest" href="manifest-admin.json">
 <!-- Lucide Icons CDN -->
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Google Fonts Inter -->
 <style>
         .custom-scrollbar::-webkit-scrollbar {
@@ -8916,17 +8915,12 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 }
 </style>
 
-
-<style id="samali-final-responsive-fix">
-/* Final responsive layout: content may wrap vertically instead of shrinking at high zoom. */
-.samali-portal-row{display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;width:100%;}
-.samali-portal-row>.samali-portal-text{flex:1 1 280px;min-width:0;}
-.samali-portal-row>.samali-portal-actions{flex:0 1 auto;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:.75rem;min-width:0;}
-.samali-flex-wrap{display:flex!important;flex-wrap:wrap!important;min-width:0;width:100%;}
-.samali-flex-wrap>*{min-width:0;max-width:100%;}
-@media(max-width:700px){.samali-portal-row{flex-direction:column;align-items:stretch;}.samali-portal-actions{width:100%;}}
-</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style id="samali-final-layout-fix">.samali-rekap-period{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:20px!important;flex-wrap:nowrap!important}.samali-rekap-period-copy{flex:1 1 auto!important;min-width:0!important}.samali-rekap-period-controls{flex:0 0 auto!important;align-items:center!important;justify-content:flex-end!important}.samali-detail-portal-header{flex-direction:row!important;align-items:center!important;justify-content:space-between!important;text-align:left!important;gap:18px!important}.samali-detail-portal-copy{align-items:flex-start!important;text-align:left!important;min-width:0!important}.samali-detail-portal-tabs{margin-top:0!important;flex:0 0 auto!important;justify-content:flex-end!important}main,#mainContentArea{width:100%;min-width:0}#mainContentArea>*{max-width:100%;min-width:0}@media(max-width:700px){.samali-rekap-period{flex-direction:column!important;align-items:stretch!important}.samali-rekap-period-controls{justify-content:flex-start!important}.samali-detail-portal-header{flex-direction:column!important;align-items:stretch!important}.samali-detail-portal-tabs{width:100%!important;margin-top:8px!important}.samali-detail-portal-tabs button{flex:1 1 0!important}}</style>
 </head>
+<script id="samali-supabase-bootstrap">
+(function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false}});})();
+</script>
 <body class="bg-slate-950 text-slate-100 font-sans h-screen w-screen overflow-hidden flex flex-col">
 <!-- Animated custom cursor: kept inside BODY for reliable rendering -->
 <div aria-hidden="true" id="samali-custom-cursor">
@@ -9626,37 +9620,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         }
 
         async function loadScheduleEventsFromServer() {
-            try {
-                const result = await serverScheduleGet({ action:'getJadwal' });
-                if (result.status !== 'success' || !Array.isArray(result.data)) throw new Error(result.message || 'Jadwal gagal dimuat.');
-
-                let local = [];
-                try { local = JSON.parse(localStorage.getItem(scheduleStorageKey) || '[]'); } catch (e) { local = []; }
-
-                // Pindahkan agenda lokal lama yang belum ada di sumber bersama.
-                const serverIds = new Set(result.data.map(item => String(item.id || '')));
-                const pending = Array.isArray(local) ? local.filter(item => item && item.title && item.date && !serverIds.has(String(item.id || ''))) : [];
-                if (pending.length) {
-                    for (const item of pending) {
-                        const saved = await serverScheduleGet({action:'saveJadwal',id:item.id||'',title:item.title||'',date:item.date||'',time:item.time||'',detail:item.detail||''});
-                        if (!saved || saved.status !== 'success') throw new Error(saved?.message || 'Jadwal belum tersimpan.');
-                    }
-                    const refreshed = await serverScheduleGet({action:'getJadwal'});
-                    if (refreshed.status === 'success' && Array.isArray(refreshed.data)) result.data = refreshed.data;
-                }
-
-                scheduleEvents = result.data.map(item => ({...item,id:String(item.id||''),date:String(item.date||'').slice(0,10)}));
-                cacheScheduleEvents();
-                renderScheduleCalendar();
-                renderAdminPortalOnlineTables();
-                renderDashboardOverdueAttendanceAlerts();
-                renderMissingBirthDateAlerts();
-                return true;
-            } catch (error) {
-                console.warn('Jadwal server belum dapat dimuat:', error);
-                renderScheduleCalendar();
-                return false;
-            }
+            try { if(!window.samaliDb) throw new Error('Jadwal belum dapat dimuat.'); const {data,error}=await window.samaliDb.from('kegiatan').select('*').order('date',{ascending:true}).order('time',{ascending:true}); if(error) throw error; scheduleEvents=(data||[]).map(item=>({id:String(item.id),title:String(item.title||''),date:String(item.date||'').slice(0,10),time:String(item.time||''),detail:String(item.detail||'')})); cacheScheduleEvents(); renderScheduleCalendar(); renderAdminPortalOnlineTables(); renderDashboardOverdueAttendanceAlerts(); renderMissingBirthDateAlerts(); return true; } catch(error){ console.warn('Jadwal belum dapat dimuat:',error); renderScheduleCalendar(); return false; }
         }
 
         // Sinkronisasi antar halaman Admin/Jamaah pada origin yang sama.
@@ -9754,69 +9718,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // Data dari server menjadi sumber utama. Data contoh tetap dipertahankan sebagai fallback
         // jika server belum dapat diakses, sehingga fitur lain tidak ikut rusak.
         async function loadSensusJamaahFromServer(forceRefresh = false) {
-            // Jika refresh paksa diminta saat request lama masih berjalan, tunggu
-            // request tersebut lalu lakukan GET baru. Ini mencegah UI menerima cache/request lama.
-            if (sensusDataPromise) {
-                const pendingRequest = sensusDataPromise;
-                if (!forceRefresh) return pendingRequest;
-                return pendingRequest.then(() => loadSensusJamaahFromServer(true));
-            }
-
-            const requestMutationVersion = sensusMutationVersion;
-
-            sensusDataPromise = (async () => {
-                try {
-                    const result = await serverJsonpGet({action:'getSensus'}, 20000);
-                    if (result.status !== 'success' || !Array.isArray(result.data)) {
-                        throw new Error(result.message || 'Data sensus tidak tersedia.');
-                    }
-
-                    // Respons kosong tidak boleh menghapus data yang sudah tampil di browser.
-                    // Ini melindungi UI dari deployment lama / respons kosong sementara.
-                    if (result.data.length === 0 && mockJamaah.length > 0) {
-                        console.warn('Server mengembalikan 0 data, tetapi UI masih memiliki data. Data UI dipertahankan.', result);
-                        if (result.warning) showToast(result.warning, 'error');
-                        return true;
-                    }
-
-                    // Jika ada edit/tambah/hapus yang selesai setelah request ini dimulai,
-                    // jangan biarkan response lama menimpa perubahan lokal terbaru.
-                    if (requestMutationVersion !== sensusMutationVersion) {
-                        return true;
-                    }
-
-                    const serverData = result.data.map((row, index) => ({
-                        id: index + 1,
-                        sheetRow: Number(row.sheetRow) || 0,
-                        no: Number(row.no) || index + 1,
-                        kodeKelg: String(row.kodeKelg || '').trim(),
-                        pref: String(row.pref || '').trim(),
-                        nama: String(row.nama || '').trim(),
-                        lp: String(row.lp || '').trim().toUpperCase(),
-                        ttl: String(row.ttl || '').trim(),
-                        umur: Number(row.umur) || 0,
-                        statusBk: String(row.statusBk || row.statusHubungan || '').trim().toUpperCase(),
-                        status: String(row.status || '').trim(),
-                        alamat: String(row.alamat || '').trim(),
-                        telepon: String(row.telepon || '').trim(),
-                        ket: String(row.ket || '').trim()
-                    }));
-
-                    // Sinkronisasi diam-diam: jangan pernah menghapus pencarian/filter pengguna.
-                    applySensusServerData(serverData, false);
-                    syncCalculatedAgesToServer();
-                    sensusDataLoaded = true;
-                    if (result.warning) showToast(result.warning, 'error');
-                    return true;
-                } catch (error) {
-                    console.error('Gagal memuat Sensus Jamaah dari server:', error);
-                    return false;
-                } finally {
-                    sensusDataPromise = null;
-                }
-            })();
-
-            return sensusDataPromise;
+            if(sensusDataPromise&&!forceRefresh)return sensusDataPromise; sensusDataPromise=(async()=>{try{if(!window.samaliDb)throw new Error('Data jamaah belum dapat dimuat.');const {data,error}=await window.samaliDb.from('sensus_jamaah').select('*').order('no',{ascending:true});if(error)throw error;const serverData=(data||[]).map((row,index)=>({id:String(row.id??index+1),no:Number(row.no??index+1),kodeKelg:String(row.kode_kelg??row.kodeKelg??'').trim(),pref:String(row.pref??'').trim(),nama:String(row.nama??'').trim(),lp:String(row.lp??'').trim().toUpperCase(),ttl:String(row.ttl??'').trim(),umur:Number(row.umur??0)||0,statusBk:String(row.status_bk??row.statusBk??'').trim().toUpperCase(),status:String(row.status??'').trim(),alamat:String(row.alamat??'').trim(),telepon:String(row.telepon??'').trim(),ket:String(row.ket??'').trim()}));applySensusServerData(serverData,false);return true;}catch(error){console.warn('Data jamaah belum dapat dimuat:',error);return false;}finally{sensusDataPromise=null;}})();return sensusDataPromise;
         }
 
         function syncCalculatedAgesToServer() {
@@ -9850,7 +9752,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         refreshAllCalculatedAges();
 
         // Login memakai JSONP agar tidak terganggu redirect/CORS Web App Google Apps Script.
-        function serverLoginGet(email, password, timeoutMs = 15000) {
+        function serverLoginGet(email, password, timeoutMs = 5000) {
             return new Promise((resolve, reject) => {
                 const callbackName = `samaliLoginJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
                 const qs = new URLSearchParams({
@@ -9924,7 +9826,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 if (result.no !== undefined && result.no !== null) {
                     localStorage.setItem('samali_user_no', String(result.no));
                 }
-                showToast('Berhasil masuk ke Sistem Sensus Jamaah', 'success');
+                showToast('Selamat datang kembali.', 'success');
             } catch (error) {
                 console.error('Login gagal:', error);
                 showAlertBox(error && error.message ? error.message : 'Email atau kata sandi tidak cocok.', 'error');
@@ -9966,7 +9868,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
             toast.innerHTML = `
                 <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-4 h-4 flex-shrink-0"></i>
-                <span>${type === 'success' ? 'Sudah bisa.' : 'Tidak berhasil.'}</span>
+                <span>${message}</span>
             `;
 
             container.appendChild(toast);
@@ -10784,33 +10686,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             }
         }
 
-        function sendMutationInBackground(payload, onResult) {
-            const callbackName = `samaliMutationBg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            const qs = new URLSearchParams();
-            Object.entries(payload || {}).forEach(([key, value]) => qs.set(key, value == null ? '' : String(value)));
-            qs.set('callback', callbackName);
-            qs.set('_', String(Date.now()));
-            const script = document.createElement('script');
-            let finished = false;
-            const cleanup = () => {
-                if (finished) return;
-                finished = true;
-                try { delete window[callbackName]; } catch (e) {}
-                script.remove();
-                clearTimeout(timer);
-            };
-            const timer = setTimeout(cleanup, 60000);
-            window[callbackName] = result => {
-                if (finished) return;
-                cleanup();
-                try { if (typeof onResult === 'function') onResult(result); } catch (e) { console.warn('Callback mutasi background gagal:', e); }
-            };
-            script.onerror = () => cleanup();
-            script.src = `${PROFILE_API}?${qs.toString()}`;
-            script.async = true;
-            document.head.appendChild(script);
-            return callbackName;
-        }
+        function sendMutationInBackground(payload,onResult){const action=String(payload?.action||'');const run=async()=>{try{if(window.samaliDb&&['tambahSensus','updateSensus','hapusSensus'].includes(action)){if(action==='tambahSensus'){const row={no:Number(payload.no)||0,kode_kelg:String(payload.kode_kk||''),pref:String(payload.gelar||''),nama:String(payload.nama||''),lp:String(payload.lp||''),ttl:String(payload.ttl||''),umur:Number(payload.umur)||0,status_bk:String(payload.statusHubungan||''),status:String(payload.status||''),alamat:String(payload.alamat||''),telepon:String(payload.telepon||''),ket:String(payload.keterangan||'')};const q=await window.samaliDb.from('sensus_jamaah').insert(row);if(q.error)throw q.error;}else if(action==='updateSensus'){const row={kode_kelg:String(payload.kode_kk||''),pref:String(payload.gelar||''),nama:String(payload.nama||''),lp:String(payload.lp||''),ttl:String(payload.ttl||''),umur:Number(payload.umur)||0,status_bk:String(payload.statusHubungan||''),status:String(payload.status||''),alamat:String(payload.alamat||''),telepon:String(payload.telepon||''),ket:String(payload.keterangan||'')};const q=await window.samaliDb.from('sensus_jamaah').update(row).eq('id',Number(payload.id));if(q.error)throw q.error;}else{const q=await window.samaliDb.from('sensus_jamaah').delete().eq('id',Number(payload.id));if(q.error)throw q.error;}if(typeof onResult==='function')onResult({status:'success'});return;}const result=await serverJsonpGet(payload,8000);if(typeof onResult==='function')onResult(result);}catch(e){if(typeof onResult==='function')onResult({status:'error',message:e.message});}};run();}
 
         async function verifySensusMutation(noJamaah, expected, shouldExist = true) {
             try {
@@ -10841,9 +10717,9 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             refreshAllCalculatedAges(); cacheSensusData(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
             pendingDeleteId = null;
             closeFullScreenModal();
-            showToast('Data Jamaah berhasil dihapus. Sinkronisasi berjalan di belakang.', 'success');
+            showToast('Data Jamaah berhasil dihapus. Perubahan sedang diproses.', 'success');
 
-            sendMutationInBackground({ action:'hapusSensus', no:String(noJamaah) }, result => {
+            sendMutationInBackground({ action:'hapusSensus', id:String(jamaah.id), no:String(noJamaah) }, result => {
                 if (!result || result.status !== 'success') console.warn('Server hapus Sensus mengembalikan:', result);
                 setTimeout(() => loadSensusJamaahFromServer(true).catch(()=>{}), 700);
             });
@@ -10868,7 +10744,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             const no = existing ? Number(existing.no || 0) : 0;
             if (editId !== null && (!no || no < 1)) { showToast('Nomor Jamaah tidak valid.', 'error'); return; }
 
-            const payload = { action: editId !== null ? 'updateSensus' : 'tambahSensus', no, kode_kk:kodeKelg, gelar:pref, nama, lp, ttl, umur, statusHubungan:statusBk, status, alamat, telepon, keterangan:ket };
+            const payload = { action: editId !== null ? 'updateSensus' : 'tambahSensus', id: editId !== null ? String(editId) : '', no, kode_kk:kodeKelg, gelar:pref, nama, lp, ttl, umur, statusHubungan:statusBk, status, alamat, telepon, keterangan:ket };
             const finalNo = editId !== null ? no : (mockJamaah.reduce((m,w) => Math.max(m, Number(w.no)||0), 0) + 1);
             sensusMutationVersion += 1;
             sensusLastMutationAt = Date.now();
@@ -10880,7 +10756,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             }
             refreshAllCalculatedAges(); cacheSensusData(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
             closeFullScreenModal();
-            showToast(editId !== null ? 'Data Sensus Jamaah berhasil diperbarui. Sinkronisasi berjalan di belakang.' : 'Jamaah baru berhasil ditambahkan. Sinkronisasi berjalan di belakang.', 'success');
+            showToast(editId !== null ? 'Data Sensus Jamaah berhasil diperbarui. Perubahan sedang diproses.' : 'Jamaah baru berhasil ditambahkan. Perubahan sedang diproses.', 'success');
 
             sendMutationInBackground(payload, result => {
                 if (!result || result.status !== 'success') console.warn('Server simpan Sensus mengembalikan:', result);
@@ -11334,9 +11210,10 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         }
 
         async function sendScheduleMutation(payload, timeoutMs = 12000) {
-            const result = await serverScheduleGet(payload, timeoutMs);
-            if (!result || result.status !== 'success') throw new Error(result?.message || 'Permintaan jadwal gagal.');
-            return result;
+            if(!window.samaliDb) throw new Error('Jadwal belum dapat diproses.'); const action=String(payload?.action||'');
+            if(action==='saveJadwal'){const row={title:String(payload.title||''),date:String(payload.date||''),time:String(payload.time||''),detail:String(payload.detail||'')}; const q=payload.id&&/^\d+$/.test(String(payload.id))?await window.samaliDb.from('kegiatan').update(row).eq('id',Number(payload.id)):await window.samaliDb.from('kegiatan').insert(row); if(q.error)throw q.error; return {status:'success'};}
+            if(action==='deleteJadwal'){const q=await window.samaliDb.from('kegiatan').delete().eq('id',Number(payload.id));if(q.error)throw q.error;return {status:'success'};}
+            throw new Error('Jadwal belum dapat diproses.');
         }
 
         async function handleSaveSchedule(e, editId = null) {
@@ -11361,7 +11238,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 showToast(editId !== null ? 'Jadwal berhasil diperbarui.' : 'Jadwal berhasil ditambahkan.', 'success');
             } catch (error) {
                 console.warn('Penyimpanan jadwal tertunda:', error);
-                showToast('Jadwal sedang disinkronkan.', 'success');
+                showToast('Jadwal sedang diproses.', 'success');
             }
         }
 
@@ -11472,7 +11349,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 showToast('Jadwal berhasil dihapus.', 'success');
             } catch (error) {
                 console.warn('Penghapusan jadwal tertunda:', error);
-                showToast('Perubahan sedang disinkronkan.', 'success');
+                showToast('Perubahan sedang diproses.', 'success');
             }
         }
 
@@ -12124,7 +12001,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             mainArea.innerHTML = `
                 <div class="max-w-7xl mx-auto w-full px-1 sm:px-4 pb-8">
                     <div class="mb-6"><div class="flex items-center gap-2 mb-2"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i data-lucide="chart-no-axes-column" class="w-3.5 h-3.5"></i>Rekap Pengajian</span></div><h3 class="text-2xl font-bold text-white tracking-tight">Rekap Pengajian</h3><p class="text-sm text-slate-400 mt-1">Rekap hanya untuk Pengajian Umum dan Pengajian Ibu-Ibu.</p></div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="flex flex-col md:flex-row md:items-end justify-between gap-4"><div><p class="text-xs font-bold text-white">Periode Rekap</p><p class="text-[11px] text-slate-500 mt-1">Pilih periode yang SUDAH lewat. Periode hari/minggu/bulan/tahun yang sedang berjalan tidak ditampilkan agar pencatatan yang belum lengkap tidak terbaca sebagai hasil akhir.</p></div><div class="flex flex-wrap gap-2"><select onchange="setRekapRange(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"><option value="today" ${rekapRange==='today'?'selected':''}>Sehari</option><option value="week" ${rekapRange==='week'?'selected':''}>Seminggu</option><option value="month" ${rekapRange==='month'?'selected':''}>Sebulan</option><option value="year" ${rekapRange==='year'?'selected':''}>Setahun</option></select><input type="${refType}" value="${escapeHtml(rekapReference)}" ${refType === 'date' ? `max="${getDateKey(getHistoricalReferenceDate())}"` : ''} onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div></div>
+                    <div class="samali-rekap-period bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="samali-rekap-period-copy"><p class="text-xs font-bold text-white">Periode Rekap</p><p class="text-[11px] text-slate-500 mt-1">Pilih periode yang SUDAH lewat. Periode hari/minggu/bulan/tahun yang sedang berjalan tidak ditampilkan agar pencatatan yang belum lengkap tidak terbaca sebagai hasil akhir.</p></div><div class="samali-rekap-period-controls flex flex-wrap gap-2"><select onchange="setRekapRange(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"><option value="today" ${rekapRange==='today'?'selected':''}>Sehari</option><option value="week" ${rekapRange==='week'?'selected':''}>Seminggu</option><option value="month" ${rekapRange==='month'?'selected':''}>Sebulan</option><option value="year" ${rekapRange==='year'?'selected':''}>Setahun</option></select><input type="${refType}" value="${escapeHtml(rekapReference)}" ${refType === 'date' ? `max="${getDateKey(getHistoricalReferenceDate())}"` : ''} onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div></div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         ${[['umum','Pengajian Umum',umum],['ibu','Pengajian Ibu-Ibu',ibu]].map(([cat,label,summary])=>`<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl"><div class="flex items-start justify-between gap-3"><div><h4 class="text-lg font-bold text-white">${label}</h4><p class="text-[11px] text-slate-500 mt-1">${cat==='umum'?'Usia Mandiri dan Lansia.':'Semua perempuan yang Usia Mandiri dan Lansia.'}</p></div><div class="text-right"><div class="text-3xl font-extrabold text-emerald-400">${summary.percentage}%</div><div class="text-[10px] text-slate-500">persentase hadir</div></div></div><div class="grid grid-cols-4 gap-2 mt-5"><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-emerald-400">${summary.H}</div><div class="text-[9px] text-slate-500">Hadir</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-amber-400">${summary.S}</div><div class="text-[9px] text-slate-500">Sakit</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-blue-400">${summary.I}</div><div class="text-[9px] text-slate-500">Izin</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-rose-400">${summary.A}</div><div class="text-[9px] text-slate-500">Alpa</div></div></div><div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-800"><span class="text-[11px] text-slate-500">${summary.total} catatan kehadiran · ${range.label}</span><button type="button" onclick="openRekapDetail('${cat}')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2"><i data-lucide="list" class="w-4 h-4"></i>Detail</button></div></div>`).join('')}
                     </div>
@@ -12266,20 +12143,8 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         function sanitizeClientRichHtml(html) {
             return String(html || '').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<iframe[\s\S]*?<\/iframe>/gi,'').replace(/\\son[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)/gi,'').replace(/javascript:/gi,'');
         }
-        async function loadMusyawarah() {
-            try {
-                const response = await fetch(`${PROFILE_API}?action=getMusyawarah&_=${Date.now()}`,{method:'GET',cache:'no-store',redirect:'follow'});
-                const result = await response.json();
-                if (result.status !== 'success' || !Array.isArray(result.data)) throw new Error(result.message || 'Data tidak dapat dimuat.');
-                musyawarahItems = result.data;
-                renderMusyawarahList();
-                renderAdminPortalOnlineTables();
-                return true;
-            } catch(error) {
-                console.error('Gagal memuat hasil musyawarah:',error);
-                showToast('Hasil musyawarah gagal dimuat.', 'error');
-                return false;
-            }
+        async function loadMusyawarah(){
+            try{const result=await serverJsonpGet({action:'getMusyawarah'},10000);if(!result||result.status!=='success'||!Array.isArray(result.data))throw new Error(result?.message||'Hasil musyawarah belum dapat ditampilkan.');musyawarahItems=result.data;renderMusyawarahList();renderAdminPortalOnlineTables();return true;}catch(error){console.error('Gagal memuat hasil musyawarah:',error);showToast('Hasil musyawarah belum dapat ditampilkan.','error');return false;}
         }
         let musyawarahSavedRange = null;
         function rememberMusyawarahSelection(){
@@ -12587,12 +12452,12 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                     </div>
 
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl dashboard-detail-wrapper">
-                        <div class="dashboard-detail-header">
-                            <div class="dashboard-detail-title">
+                        <div class="dashboard-detail-header samali-detail-portal-header">
+                            <div class="dashboard-detail-title samali-detail-portal-copy">
                                 <p class="text-sm font-bold text-white">Detail Portal</p>
                                 <p class="text-[11px] text-slate-500 mt-0.5">Klik kartu statistik di atas atau geser bagian ini untuk berpindah tampilan.</p>
                             </div>
-                            <div class="dashboard-detail-tabs" role="tablist" aria-label="Pilihan detail dasbor">
+                            <div class="dashboard-detail-tabs samali-detail-portal-tabs" role="tablist" aria-label="Pilihan detail dasbor">
                                 <button type="button" data-dashboard-detail-tab="age" onclick="setDashboardDetailView('age')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Kategori Usia</button>
                                 <button type="button" data-dashboard-detail-tab="agenda" onclick="setDashboardDetailView('agenda')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Agenda</button>
                                 <button type="button" data-dashboard-detail-tab="attendance" onclick="setDashboardDetailView('attendance')" class="px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all">Per Jamaah</button>
@@ -12941,9 +12806,11 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 })();
 </script>
 
-<script id="samali-supabase-direct-fix">
-(function(){
-  const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
+<script id="samali-supabase-realtime">
+(function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true)).subscribe();},1000);})();
+</script>
+</body>
+</html>onst SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
   const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
   if(!window.supabaseClient && window.supabase?.createClient){
     window.supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);

@@ -95,12 +95,16 @@ button:disabled{cursor:not-allowed}
    Form tidak lagi memaksa background gelap saat mode terang.
 ========================================================= */
 html:not(.dark) body{
-  background:#f8fafc;
+  background:
+    radial-gradient(circle at top, rgba(16,185,129,.08), transparent 35%),
+    #f8fafc;
   color:#0f172a;
 }
 
 html.dark body{
-  background:#0f172a;
+  background:
+    radial-gradient(circle at top, rgba(16,185,129,.10), transparent 35%),
+    #0f172a;
   color:#e2e8f0;
 }
 
@@ -7705,16 +7709,7 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
   html,body{cursor:auto!important}
 }
 </style>
-
-<style id="samali-final-responsive-fix">
-/* Final responsive layout: content may wrap vertically instead of shrinking at high zoom. */
-.samali-portal-row{display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;width:100%;}
-.samali-portal-row>.samali-portal-text{flex:1 1 280px;min-width:0;}
-.samali-portal-row>.samali-portal-actions{flex:0 1 auto;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:.75rem;min-width:0;}
-.samali-flex-wrap{display:flex!important;flex-wrap:wrap!important;min-width:0;width:100%;}
-.samali-flex-wrap>*{min-width:0;max-width:100%;}
-@media(max-width:700px){.samali-portal-row{flex-direction:column;align-items:stretch;}.samali-portal-actions{width:100%;}}
-</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
 <!-- =====================================================
@@ -7922,26 +7917,6 @@ body:not(.dark):not(.dark-mode) [class*="agenda-count"] {
 </div>
 </section>
 <section class="page" id="pageBeranda">
-<div class="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-100 p-7 md:p-10 dark:border-emerald-900 dark:from-emerald-950/70 dark:via-slate-900 dark:to-slate-950">
-<div class="max-w-3xl">
-<p class="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
-            PORTAL JAMAAH SAMALI
-          </p>
-<h1 class="mt-2 text-3xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-            Assalamu'alaikum<span id="homeNameSuffix"></span>
-</h1>
-<p class="mt-4 text-slate-600 dark:text-slate-300 leading-7">
-            Selamat datang di Portal Jamaah.
-            Di sini Anda dapat melihat jadwal kegiatan
-            melihat jadwal pengajian dan informasi yang tersedia.
-          </p>
-<div class="mt-6 flex flex-wrap gap-3">
-<button class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold" onclick="showPage('jadwal')">
-              📅 Lihat Jadwal
-            </button>
-</div>
-</div>
-</div>
 <div class="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-900">
 <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
 <div><h3 class="font-bold text-slate-900 dark:text-white">Jadwal Pengajian</h3><p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal yang belum berlangsung tersedia di Portal.</p></div>
@@ -8246,7 +8221,7 @@ function showPage(page){
 
 
 
-function showJamaahToast(message){let t=document.getElementById('samaliJamaahToast');if(!t){t=document.createElement('div');t.id='samaliJamaahToast';t.className='fixed bottom-5 right-5 z-[100] px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-2xl text-sm font-semibold opacity-0 translate-y-3 transition-all duration-300';document.body.appendChild(t)}t.textContent='Sudah bisa.';requestAnimationFrame(()=>t.classList.remove('opacity-0','translate-y-3'));clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.add('opacity-0','translate-y-3'),2200)}
+function showJamaahToast(message){let t=document.getElementById('samaliJamaahToast');if(!t){t=document.createElement('div');t.id='samaliJamaahToast';t.className='fixed bottom-5 right-5 z-[100] px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-2xl text-sm font-semibold opacity-0 translate-y-3 transition-all duration-300';document.body.appendChild(t)}t.textContent=message;requestAnimationFrame(()=>t.classList.remove('opacity-0','translate-y-3'));clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.add('opacity-0','translate-y-3'),2200)}
 
 
 
@@ -9619,18 +9594,11 @@ document.addEventListener('DOMContentLoaded', function(){
   };
 })();
 </script>
-<script id="samali-supabase-direct-fix">
-(function(){
-  const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
-  const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
-  if(!window.supabaseClient && window.supabase?.createClient) window.supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-  const db=window.supabaseClient;if(!db)return;
-  const normDate=v=>String(v??'').split('T')[0];
-  const mapSchedule=x=>({id:String(x.id??''),title:String(x.title??''),date:normDate(x.date),time:String(x.time??''),detail:String(x.detail??'')});
-  const mapSensus=x=>{const tempat=String(x.tempat_lahir??x.tempatLahir??x.tempat??'').trim();const tanggal=normDate(x.tanggal_lahir??x.tanggalLahir??x.tgl_lahir??'');const ttl=String(x.ttl??'').trim()||[tempat,tanggal].filter(Boolean).join(', ');return{id:String(x.id??''),no:Number(x.no??0),sheetRow:Number(x.sheetRow??0),kodeKelg:String(x.kode_kelg??x.kode_kk??''),pref:String(x.pref??''),nama:String(x.nama??''),lp:String(x.lp??'').toUpperCase(),ttl,tempatLahir:tempat,tanggalLahir:tanggal,umur:Number(x.umur??0),statusBk:String(x.status_bk??x.statusHubungan??'').toUpperCase(),status:String(x.status??''),alamat:String(x.alamat??''),telepon:String(x.telepon??''),ket:String(x.ket??x.keterangan??'')}};
-  async function getAll(table,order='id'){const all=[];let from=0;const size=1000;while(true){const{data,error}=await db.from(table).select('*').order(order,{ascending:true}).range(from,from+size-1);if(error)throw error;const rows=data||[];all.push(...rows);if(rows.length<size)break;from+=size;}return all;}
-  async function loadSchedules(){try{const rows=await getAll('kegiatan','id');const n=rows.map(mapSchedule).filter(x=>x.date&&!String(x.title).startsWith('[MUSYAWARAH] '));if(typeof publicScheduleEvents!=='undefined')publicScheduleEvents=n;window.publicScheduleEvents=n;if(typeof scheduleEvents!=='undefined')scheduleEvents=n;window.scheduleEvents=n;window.renderPublicCalendar?.();window.renderScheduleCalendar?.();window.renderPortalOnlineTables?.();window.loadTodaySchedules?.();return true}catch(e){console.error(e);window.showToast?.('Tidak berhasil.','error');return false;}}
-  window.loadScheduleEventsFromDatabase=loadSchedules;window.loadSchedule=loadSchedules;
+<script id="samali-public-supabase-live">
+(function(){const URL='https://eopktyqzztmmvimyedmh.supabase.co',KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';let db=null;async function sync(){try{if(!window.supabase?.createClient)return;db=db||window.supabase.createClient(URL,KEY,{auth:{persistSession:false}});const {data,error}=await db.from('kegiatan').select('*').order('date',{ascending:true}).order('time',{ascending:true});if(error)throw error;localStorage.setItem('samali_kegiatan',JSON.stringify(data||[]));if(typeof loadTodaySchedules==='function')loadTodaySchedules();if(typeof renderPublicCalendar==='function')renderPublicCalendar();}catch(e){console.warn('Jadwal belum dapat dimuat:',e)}}setTimeout(()=>{sync();if(!db&&window.supabase?.createClient)db=window.supabase.createClient(URL,KEY,{auth:{persistSession:false}});if(db)db.channel('samali-public-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},sync).subscribe();},400);})();
+</script>
+</body>
+</html>w.loadScheduleEventsFromDatabase=loadSchedules;window.loadSchedule=loadSchedules;
   async function loadSensus(){try{const rows=await getAll('sensus_jamaah','id'),n=rows.map(mapSensus);if(typeof mockJamaah!=='undefined')mockJamaah=n;window.mockJamaah=n;if(typeof sensusItems!=='undefined')sensusItems=n;window.sensusItems=n;window.sensusDataLoaded=true;window.updateTableBodyOnly?.();window.updateAgeCategoryCards?.();window.updateDashboardSensusCount?.();window.updateSensusPageLoadingState?.();window.updateAccountStatusUI?.();window.renderSensus?.();window.renderAgeSummary?.();window.renderPortalSummary?.();return true}catch(e){console.error(e);window.showToast?.('Tidak berhasil.','error');return false;}}
   window.loadSensusJamaahFromServer=loadSensus;window.loadSensus=loadSensus;
   let scheduleChannel=null,sensusChannel=null;
