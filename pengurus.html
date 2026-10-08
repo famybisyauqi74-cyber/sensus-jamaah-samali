@@ -7843,7 +7843,6 @@ async function loadSchedule(isInitial=false){
     const {data,error}=await window.samaliDb.from('kegiatan').select('*').order('date',{ascending:true}).order('time',{ascending:true});
     if(error)throw error;
     scheduleEvents=(data||[]).map((x,i)=>({id:String(x.id??i+1),title:String(x.title??''),date:normalizeDateKey(x.date??''),time:String(x.time??''),detail:String(x.detail??'')})).filter(x=>x.date);
-    try{localStorage.setItem('samali_kegiatan',JSON.stringify(scheduleEvents));}catch(e){}
     pengurusScheduleFingerprint=stableDataFingerprint(scheduleEvents);loadTodaySchedules();renderScheduleCalendar();renderPortalOnlineTables();renderPortalSummary();return true;
   }catch(e){console.warn('Jadwal belum dapat dimuat:',e);loadTodaySchedules();return false;}
 }
@@ -7858,7 +7857,6 @@ async function loadSensus(isInitial=false){
     if(error)throw error;
     sensusItems=(data||[]).map(normalizeSensusRow);
     pengurusSensusFingerprint=stableDataFingerprint(sensusItems);
-    try{localStorage.setItem('samali_sensus_data',JSON.stringify(sensusItems));}catch(e){}
     renderSensus();renderAgeSummary();renderPortalSummary();return true;
   }catch(e){console.warn('Data jamaah belum dapat dimuat:',e);if(isInitial&&document.getElementById('sensusBody')&&!sensusItems.length)document.getElementById('sensusBody').innerHTML='<tr><td colspan="13" class="px-5 py-10 text-center text-slate-500">Belum dapat memuat data.</td></tr>';return false;}
 }
@@ -7867,17 +7865,19 @@ async function loadMusyawarah(isInitial=false){
   const list=document.getElementById('musyawarahList');
   if(isInitial&&list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Memuat data...</div>';
   try{
-    const r=await apiJsonp({action:'getMusyawarah',_:`${Date.now()}`});
-    if(r.status!=='success'||!Array.isArray(r.data))throw Error(r.message||'Data musyawarah sedang dimuat');
-    const normalized=r.data.map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.date??x.tanggal??''),title:String(x.title??x.judul??'Hasil Musyawarah'),content:String(x.content??x.isi??x.keterangan??'')}));
+    if(!window.samaliDb)throw new Error('Database belum siap.');
+    const {data,error}=await window.samaliDb.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
+    if(error)throw error;
+    const normalized=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.tanggal??x.date??''),title:String(x.judul??x.title??'Hasil Musyawarah'),content:String(x.isi??x.content??'')}));
     const fp=stableDataFingerprint(normalized);
     if(!isInitial&&fp===pengurusMusyawarahFingerprint)return false;
     pengurusMusyawarahFingerprint=fp;musyawarahItems=normalized;
     renderMusyawarah();renderPortalOnlineTables();return true;
   }catch(e){
+    console.error('Supabase musyawarah Pengurus:',e);
     if(isInitial){
-      if(list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Memuat data...</div>';
-      const p=document.getElementById('portalMusyawarahTable');if(p)p.innerHTML='<div class="p-8 text-center text-sm text-slate-500">Memuat data...</div>';
+      if(list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Data sedang dimuat...</div>';
+      const p=document.getElementById('portalMusyawarahTable');if(p)p.innerHTML='<div class="p-8 text-center text-sm text-slate-500">Data sedang dimuat...</div>';
     }
     return false;
   }
@@ -7900,7 +7900,7 @@ async function loadAll(isInitial=false){
   renderSensus();renderAgeSummary();
 }
 let pengurusLiveTimer=null;
-function startPengurusLiveSync(){if(pengurusLiveTimer)clearInterval(pengurusLiveTimer);pengurusLiveTimer=setInterval(()=>{if(!document.hidden)loadAll(false)},30000)}
+function startPengurusLiveSync(){if(pengurusLiveTimer)clearInterval(pengurusLiveTimer);pengurusLiveTimer=setInterval(()=>{if(!document.hidden)loadAll(false)},5000)}
 
 let samaliJsPdfPromise=null;
 function loadSamaliJsPdf(){if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);if(samaliJsPdfPromise)return samaliJsPdfPromise;samaliJsPdfPromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject();s.onerror=reject;document.head.appendChild(s)});return samaliJsPdfPromise}
@@ -7993,30 +7993,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const themeButton=document.getElementById('themeBtn');
   if(themeButton) themeButton.innerHTML=`<i data-lucide="${dark?'sun':'moon'}"></i>`;
 
-  // WAJIB: pusat data bersama Admin -> Pengurus.
-  try{
-    const sensusData=JSON.parse(localStorage.getItem('samali_sensus_data')) || [];
-    if(Array.isArray(sensusData)){
-      sensusItems=sensusData.map(normalizeSensusRow);
-      pengurusSensusFingerprint=stableDataFingerprint(sensusItems);
-    }
-  }catch(e){sensusItems=[];}
-
-  // WAJIB: pusat jadwal bersama Admin -> Pengurus.
-  try{
-    const eventsArray=JSON.parse(localStorage.getItem('samali_kegiatan')) || [];
-    if(Array.isArray(eventsArray)){
-      scheduleEvents=eventsArray.map((x,i)=>({
-        id:String(x.id??i+1),
-        title:String(x.title??x.judul??'Kegiatan'),
-        date:normalizeDateKey(x.date??x.tanggal??''),
-        time:String(x.time??x.waktu??''),
-        detail:String(x.detail??x.keterangan??'')
-      })).filter(x=>x.date);
-      pengurusScheduleFingerprint=stableDataFingerprint(scheduleEvents);
-    }
-  }catch(e){scheduleEvents=[];}
-
   try{history.replaceState(null,'','#portal')}catch(e){}
   showPage('portal');
   renderSensus();
@@ -8029,36 +8005,6 @@ document.addEventListener('DOMContentLoaded', function(){
   loadAll(true).finally(()=>startPengurusLiveSync());
 });
 
-window.addEventListener('storage', function(event){
-  if(event.key === 'samali_sensus_data'){
-    try{
-      const incoming=JSON.parse(event.newValue || '[]');
-      if(!Array.isArray(incoming)) return;
-      sensusItems=incoming.map(normalizeSensusRow);
-      pengurusSensusFingerprint=stableDataFingerprint(sensusItems);
-      renderSensus();
-      renderAgeSummary();
-      renderPortalSummary();
-    }catch(e){console.warn('Sinkronisasi sensus Pengurus gagal:',e);}
-  }
-  if(event.key === 'samali_kegiatan'){
-    try{
-      const incoming=JSON.parse(event.newValue || '[]');
-      if(!Array.isArray(incoming)) return;
-      scheduleEvents=incoming.map((x,i)=>({
-        id:String(x.id??i+1),
-        title:String(x.title??x.judul??'Kegiatan'),
-        date:normalizeDateKey(x.date??x.tanggal??''),
-        time:String(x.time??x.waktu??''),
-        detail:String(x.detail??x.keterangan??'')
-      })).filter(x=>x.date);
-      pengurusScheduleFingerprint=stableDataFingerprint(scheduleEvents);
-      loadTodaySchedules();
-      renderPortalOnlineTables();
-      renderPortalSummary();
-    }catch(e){console.warn('Sinkronisasi jadwal Pengurus gagal:',e);}
-  }
-});
 
 </script>
 <script id="samali-pengurus-realtime">
@@ -8067,6 +8013,7 @@ window.addEventListener('storage', function(event){
   window.samaliDb.channel('samali-pengurus-live')
     .on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadSchedule(false))
     .on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensus(false))
+    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah(false))
     .subscribe();
 })();
 </script>

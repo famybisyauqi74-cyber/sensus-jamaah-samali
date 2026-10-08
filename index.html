@@ -9591,51 +9591,17 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             `;
         }
 
-        // Jadwal sekarang disimpan bersama melalui Apps Script, bukan localStorage.
-        // localStorage hanya dipakai sebagai cache tampilan sementara.
-        const scheduleStorageKey = 'samali_kegiatan';
-        const SAMALI_KEGIATAN_KEY = 'samali_kegiatan';
+        // Jadwal disimpan di Supabase sebagai sumber data utama.
         const SCHEDULE_API = 'https://script.google.com/macros/s/AKfycbz9SpyhY97lSvwFlkk4Hk_5cs1M6FF_AaiJXQjV0RHAF-Lz7dpvE5OI6xinpS5f4FPm/exec';
-        let scheduleEvents = loadScheduleEventsCache();
+        let scheduleEvents = [];
         let currentCalendarDate = new Date();
 
-        function loadScheduleEventsCache() {
-            try {
-                const saved = JSON.parse(localStorage.getItem(scheduleStorageKey) || '[]');
-                return Array.isArray(saved) ? saved : [];
-            } catch (error) {
-                return [];
-            }
-        }
-
-        function cacheScheduleEvents() {
-            try {
-                localStorage.setItem(
-                    SAMALI_KEGIATAN_KEY,
-                    JSON.stringify(Array.isArray(scheduleEvents) ? scheduleEvents : [])
-                );
-            } catch (error) {
-                console.warn('Cache jadwal lokal tidak dapat diperbarui:', error);
-            }
-        }
+        function cacheScheduleEvents() { return true; }
 
         async function loadScheduleEventsFromServer() {
             try { if(!window.samaliDb) throw new Error('Jadwal belum dapat dimuat.'); const {data,error}=await window.samaliDb.from('kegiatan').select('*').order('date',{ascending:true}).order('time',{ascending:true}); if(error) throw error; scheduleEvents=(data||[]).map(item=>({id:String(item.id),title:String(item.title||''),date:String(item.date||'').slice(0,10),time:String(item.time||''),detail:String(item.detail||'')})); cacheScheduleEvents(); renderScheduleCalendar(); renderAdminPortalOnlineTables(); renderDashboardOverdueAttendanceAlerts(); renderMissingBirthDateAlerts(); return true; } catch(error){ console.warn('Jadwal belum dapat dimuat:',error); renderScheduleCalendar(); return false; }
         }
 
-        // Sinkronisasi antar halaman Admin/Jamaah pada origin yang sama.
-        window.addEventListener('storage', (event) => {
-            if (event.key !== scheduleStorageKey) return;
-            try {
-                const incoming = JSON.parse(event.newValue || '[]');
-                if (!Array.isArray(incoming)) return;
-                scheduleEvents = incoming.map(item => ({...item, id:String(item.id || ''), date:String(item.date || '').slice(0,10)}));
-                renderScheduleCalendar();
-                renderAdminPortalOnlineTables();
-            } catch (error) {
-                console.warn('Sinkronisasi jadwal antar halaman gagal:', error);
-            }
-        });
 
         async function saveScheduleEvents() {
             cacheScheduleEvents();
@@ -9656,13 +9622,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // Array lama di atas hanya peninggalan kompatibilitas dan tidak digunakan sebagai sumber tampilan.
         mockJamaah = [];
 
-        const SENSUS_CACHE_KEY = 'samali_sensus_cache_v3';
-        function loadSensusCache() {
-            try {
-                const saved = JSON.parse(localStorage.getItem(SENSUS_CACHE_KEY) || '[]');
-                return Array.isArray(saved) ? saved : [];
-            } catch (e) { return []; }
-        }
         function cacheSensusData() {
             try { localStorage.setItem(SENSUS_CACHE_KEY, JSON.stringify(mockJamaah)); } catch (e) {}
         }
@@ -9694,7 +9653,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 
         function applySensusServerData(serverData, resetFilters = false) {
             mockJamaah = Array.isArray(serverData) ? serverData : [];
-            cacheSensusData();
             sensusDataLoaded = true;
 
             if (resetFilters) {
@@ -9718,7 +9676,51 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         // Data dari server menjadi sumber utama. Data contoh tetap dipertahankan sebagai fallback
         // jika server belum dapat diakses, sehingga fitur lain tidak ikut rusak.
         async function loadSensusJamaahFromServer(forceRefresh = false) {
-            if(sensusDataPromise&&!forceRefresh)return sensusDataPromise; sensusDataPromise=(async()=>{try{if(!window.samaliDb)throw new Error('Data jamaah belum dapat dimuat.');const {data,error}=await window.samaliDb.from('sensus_jamaah').select('*').order('no',{ascending:true});if(error)throw error;const serverData=(data||[]).map((row,index)=>({id:String(row.id??index+1),no:Number(row.no??index+1),kodeKelg:String(row.kode_kelg??row.kodeKelg??'').trim(),pref:String(row.pref??'').trim(),nama:String(row.nama??'').trim(),lp:String(row.lp??'').trim().toUpperCase(),ttl:String(row.ttl??'').trim(),umur:Number(row.umur??0)||0,statusBk:String(row.status_bk??row.statusBk??'').trim().toUpperCase(),status:String(row.status??'').trim(),alamat:String(row.alamat??'').trim(),telepon:String(row.telepon??'').trim(),ket:String(row.ket??'').trim()}));applySensusServerData(serverData,false);return true;}catch(error){console.warn('Data jamaah belum dapat dimuat:',error);return false;}finally{sensusDataPromise=null;}})();return sensusDataPromise;
+            if (sensusDataPromise && !forceRefresh) return sensusDataPromise;
+            sensusDataPromise = (async () => {
+                try {
+                    if (!window.samaliDb) throw new Error('Data jamaah belum dapat dimuat.');
+                    const { data, error } = await window.samaliDb
+                        .from('sensus_jamaah')
+                        .select('*')
+                        .order('no', { ascending: true })
+                        .order('id', { ascending: true });
+                    if (error) throw error;
+
+                    const serverData = (data || []).map((row, index) => ({
+                        id: String(row.id ?? index + 1),
+                        no: Number(row.no ?? index + 1) || index + 1,
+                        kodeKelg: String(row.kode_kelg ?? '').trim(),
+                        pref: String(row.pref ?? '').trim(),
+                        nama: String(row.nama ?? '').trim(),
+                        lp: String(row.lp ?? '').trim().toUpperCase(),
+                        ttl: String(row.ttl ?? '').trim(),
+                        umur: Number(row.umur ?? 0) || 0,
+                        statusBk: String(row.status_bk ?? '').trim().toUpperCase(),
+                        status: String(row.status ?? '').trim(),
+                        alamat: String(row.alamat ?? '').trim(),
+                        telepon: String(row.telepon ?? '').trim(),
+                        ket: String(row.ket ?? '').trim()
+                    }));
+
+                    mockJamaah = serverData;
+                    sensusDataLoaded = true;
+                    refreshAllCalculatedAges();
+                    updateTableBodyOnly();
+                    updateAgeCategoryCards();
+                    updateDashboardSensusCount();
+                    updateSensusPageLoadingState();
+                    updateAccountStatusUI();
+                    if (typeof renderDashboardDetail === 'function') renderDashboardDetail();
+                    return true;
+                } catch (error) {
+                    console.warn('Data jamaah belum dapat dimuat:', error);
+                    return false;
+                } finally {
+                    sensusDataPromise = null;
+                }
+            })();
+            return sensusDataPromise;
         }
 
         function syncCalculatedAgesToServer() {
@@ -11233,7 +11235,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 const result = await sendScheduleMutation({action:'saveJadwal', id:clientId, title, date, time, detail});
                 if (!result || result.status !== 'success') throw new Error(result?.message || 'Jadwal belum tersimpan.');
                 await loadScheduleEventsFromServer();
-                localStorage.setItem(SAMALI_KEGIATAN_KEY, JSON.stringify(scheduleEvents));
                 showToast(editId !== null ? 'Jadwal berhasil diperbarui.' : 'Jadwal berhasil ditambahkan.', 'success');
             } catch (error) {
                 console.warn('Penyimpanan jadwal tertunda:', error);
@@ -11344,7 +11345,6 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 const result = await sendScheduleMutation({action:'deleteJadwal', id:String(id)});
                 if (!result || result.status !== 'success') throw new Error(result?.message || 'Jadwal belum terhapus.');
                 await loadScheduleEventsFromServer();
-                localStorage.setItem(SAMALI_KEGIATAN_KEY, JSON.stringify(scheduleEvents));
                 showToast('Jadwal berhasil dihapus.', 'success');
             } catch (error) {
                 console.warn('Penghapusan jadwal tertunda:', error);
@@ -12142,8 +12142,29 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
         function sanitizeClientRichHtml(html) {
             return String(html || '').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<iframe[\s\S]*?<\/iframe>/gi,'').replace(/\\son[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)/gi,'').replace(/javascript:/gi,'');
         }
-        async function loadMusyawarah(){
-            try{const result=await serverJsonpGet({action:'getMusyawarah'},10000);if(!result||result.status!=='success'||!Array.isArray(result.data))throw new Error(result?.message||'Hasil musyawarah belum dapat ditampilkan.');musyawarahItems=result.data;renderMusyawarahList();renderAdminPortalOnlineTables();return true;}catch(error){console.error('Gagal memuat hasil musyawarah:',error);showToast('Hasil musyawarah belum dapat ditampilkan.','error');return false;}
+        async function loadMusyawarah() {
+            try {
+                if (!window.samaliDb) throw new Error('Hasil musyawarah belum dapat dimuat.');
+                const { data, error } = await window.samaliDb
+                    .from('hasil_musyawarah')
+                    .select('*')
+                    .order('tanggal', { ascending: false })
+                    .order('id', { ascending: false });
+                if (error) throw error;
+                musyawarahItems = (data || []).map((x, i) => ({
+                    id: String(x.id ?? i + 1),
+                    date: String(x.tanggal ?? x.date ?? '').slice(0, 10),
+                    title: String(x.judul ?? x.title ?? 'Hasil Musyawarah'),
+                    content: String(x.isi ?? x.content ?? '')
+                }));
+                renderMusyawarahList();
+                renderAdminPortalOnlineTables();
+                return true;
+            } catch (error) {
+                console.error('Gagal memuat hasil musyawarah:', error);
+                showToast('Hasil musyawarah belum dapat ditampilkan.', 'error');
+                return false;
+            }
         }
         let musyawarahSavedRange = null;
         function rememberMusyawarahSelection(){
@@ -12174,14 +12195,38 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             if(size){try{size.value=document.queryCommandValue('fontSize')||'3';}catch(e){}}
             document.querySelectorAll('[data-musy-command]').forEach(btn=>{try{btn.classList.toggle('active',document.queryCommandState(btn.dataset.musyCommand));}catch(e){}});
         }
-        async function postMusyawarah(payload){
-            const body=new URLSearchParams();
-            Object.entries(payload||{}).forEach(([key,value])=>body.append(key,value==null?'':String(value)));
-            const response=await fetch(PROFILE_API,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body.toString(),redirect:'follow',cache:'no-store'});
-            let result=null;
-            try{result=await response.json();}catch(e){throw new Error(`Server mengirim respons yang tidak dapat dibaca (HTTP ${response.status}).`);}
-            if(!response.ok)throw new Error(`HTTP ${response.status}`);
-            return result;
+        async function postMusyawarah(payload) {
+            if (!window.samaliDb) throw new Error('Database belum siap.');
+            const id = payload?.id ? Number(payload.id) : null;
+            const row = {
+                tanggal: String(payload?.date || ''),
+                judul: String(payload?.title || ''),
+                isi: String(payload?.content || '')
+            };
+            if (payload?.action === 'saveMusyawarah') {
+                let result;
+                if (id) {
+                    result = await window.samaliDb.from('hasil_musyawarah').update(row).eq('id', id).select('*').single();
+                } else {
+                    result = await window.samaliDb.from('hasil_musyawarah').insert(row).select('*').single();
+                }
+                if (result.error) throw result.error;
+                await loadMusyawarah();
+                return { status: 'success', item: result.data, items: musyawarahItems };
+            }
+            if (payload?.action === 'deleteMusyawarah') {
+                const result = await window.samaliDb.from('hasil_musyawarah').delete().eq('id', Number(payload.id));
+                if (result.error) throw result.error;
+                await loadMusyawarah();
+                return { status: 'success', data: musyawarahItems };
+            }
+            if (payload?.action === 'clearMusyawarah') {
+                const result = await window.samaliDb.from('hasil_musyawarah').delete().gt('id', 0);
+                if (result.error) throw result.error;
+                await loadMusyawarah();
+                return { status: 'success', data: musyawarahItems };
+            }
+            throw new Error('Aksi musyawarah tidak dikenali.');
         }
         function syncMusyawarahForm(){
             const date=document.getElementById('musyawarahDate'),title=document.getElementById('musyawarahTitle'),day=document.getElementById('musyawarahDayLabel'),editor=document.getElementById('musyawarahEditor'),save=document.getElementById('musyawarahSaveBtn');
@@ -12200,15 +12245,14 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
             if(editor){editor.innerHTML='';editor.contentEditable='false';editor.classList.add('opacity-50');}
             const day=document.getElementById('musyawarahDayLabel');if(day)day.textContent='Hari akan muncul setelah tanggal dipilih';
             document.querySelectorAll('[data-musy-tool]').forEach(el=>el.disabled=true);
-            const save=document.getElementById('musyawarahSaveBtn');if(save)save.disabled=true;
-            const label=document.getElementById('musyawarahFormTitle');if(label)label.textContent='Tulis Hasil Musyawarah';
+            const save=document.getElementById('musyawarahSaveBtn');if(save){save.disabled=true;save.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> Simpan Hasil';} const label=document.getElementById('musyawarahFormTitle');if(label)label.textContent='Tulis Hasil Musyawarah';lucide.createIcons();
         }
         function editMusyawarah(id){
             const item=musyawarahItems.find(x=>String(x.id)===String(id));if(!item)return;
             musyawarahEditingId=item.id;
             const date=document.getElementById('musyawarahDate'),title=document.getElementById('musyawarahTitle'),editor=document.getElementById('musyawarahEditor');
             date.value=item.date||'';title.disabled=false;title.value=item.title||'';editor.contentEditable='true';editor.classList.remove('opacity-50');editor.innerHTML=sanitizeClientRichHtml(item.content||'');
-            const label=document.getElementById('musyawarahFormTitle');if(label)label.textContent='Edit Hasil Musyawarah';
+            const label=document.getElementById('musyawarahFormTitle');if(label)label.textContent='Edit Hasil Musyawarah';const save=document.getElementById('musyawarahSaveBtn');if(save)save.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> Simpan Perubahan';lucide.createIcons();
             syncMusyawarahForm();editor.focus();rememberMusyawarahSelection();window.scrollTo({top:0,behavior:'smooth'});
         }
         async function saveMusyawarahEntry(){
@@ -12222,7 +12266,7 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
                 if(result.status!=='success'||!Array.isArray(result.items))throw new Error(result.message||'Gagal menyimpan.');
                 musyawarahItems=result.items;renderMusyawarahList();clearMusyawarahForm();showToast('Hasil musyawarah berhasil disimpan.','success');
             }catch(error){console.error(error);showToast(`Hasil musyawarah gagal disimpan: ${error.message||'server tidak merespons.'}${String(error.message||'').includes('Action tidak dikenali')?' — server Apps Script yang aktif belum memuat action ini. Perbarui deployment Apps Script.':''}`,'error');}
-            finally{if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" class="w-4 h-4"></i> Simpan Hasil';lucide.createIcons();syncMusyawarahForm();}}
+            finally{if(btn){btn.disabled=false;btn.innerHTML=`<i data-lucide="save" class="w-4 h-4"></i> ${musyawarahEditingId ? 'Simpan Perubahan' : 'Simpan Hasil'}`;lucide.createIcons();syncMusyawarahForm();}}
         }
         function viewMusyawarah(id){
             const item=musyawarahItems.find(x=>String(x.id)===String(id));if(!item)return;
@@ -12806,7 +12850,8 @@ body:not(.theme-light) .samali-login-theme-toggle:hover{background:#334155}
 </script>
 
 <script id="samali-supabase-realtime">
-(function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true)).subscribe();},1000);})();
+(function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true))
+    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah?.()).subscribe();},1000);})();
 </script>
 </body>
 </html>
