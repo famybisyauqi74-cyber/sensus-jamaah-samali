@@ -8954,6 +8954,30 @@ body.theme-light #dashboardDetail, body.theme-light .dashboard-detail-wrapper, b
 body.theme-light #dashboardDetail *, body.theme-light .dashboard-detail-wrapper * { border-color:#cbd5e1; }
 </style>
 
+<style id="samali-v4-contrast-fixes">
+/* Portal Samali v4: konsistensi mode gelap/terang khusus portal dan bantuan. */
+body:not(.theme-light) .samali-detail-portal-header, body:not(.theme-light) .dashboard-detail-wrapper, body:not(.theme-light) .dashboard-detail-stat-card {background:#0f172a!important;color:#e2e8f0!important;border-color:#334155!important}
+body:not(.theme-light) .samali-detail-portal-header .text-white, body:not(.theme-light) .dashboard-detail-title p:first-child {color:#f8fafc!important}
+body:not(.theme-light) .dashboard-detail-stat-card, body:not(.theme-light) .dashboard-detail-stat-card * {color:#e2e8f0}
+body:not(.theme-light) .dashboard-detail-stat-card .text-white {color:#f8fafc!important}
+body:not(.theme-light) .dashboard-detail-stat-card select, body:not(.theme-light) .samali-detail-portal-tabs button {background:#1e293b!important;color:#e2e8f0!important;border-color:#475569!important}
+body:not(.theme-light) .samali-detail-portal-tabs button.bg-emerald-600 {background:#059669!important;color:#fff!important}
+body.theme-light .samali-detail-portal-header {background:#f8fafc!important;border-color:#cbd5e1!important}
+body.theme-light .samali-detail-portal-header .text-white {color:#0f172a!important}
+body.theme-light .samali-detail-portal-header .text-slate-500 {color:#475569!important}
+body.theme-light .samali-detail-portal-tabs button {background:#e2e8f0!important;color:#334155!important}
+body.theme-light .samali-detail-portal-tabs button.bg-emerald-600 {background:#059669!important;color:#fff!important}
+body:not(.theme-light) .dashboard-detail-stat-card {background:#1e293b!important;border-color:#334155!important}
+body:not(.theme-light) .samali-copy-btn {background:#1e293b!important;color:#e2e8f0!important;border-color:#475569!important}
+body:not(.theme-light) .samali-copy-btn:hover {background:#334155!important;color:#fff!important}
+body.theme-light .samali-copy-btn {background:#f8fafc!important;color:#334155!important;border-color:#cbd5e1!important}
+body.theme-light .samali-copy-btn:hover {background:#e2e8f0!important;color:#0f172a!important}
+body.theme-light .nav-item:hover .sidebar-text, body.theme-light .nav-item:hover .sidebar-text-fade, body.theme-light .nav-item:hover span {color:#1e293b!important}
+body.theme-light .nav-item:hover {background:#e2e8f0!important}
+body.theme-light .nav-item:hover svg {color:#334155!important}
+body.theme-light input[type="date"]::-webkit-calendar-picker-indicator, body.theme-light input[type="month"]::-webkit-calendar-picker-indicator {filter:none!important;opacity:1!important;cursor:pointer}
+body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, body:not(.theme-light) input[type="month"]::-webkit-calendar-picker-indicator {filter:invert(1)!important;opacity:1!important;cursor:pointer}
+</style>
 </head>
 <script id="samali-supabase-bootstrap">
 (function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});})();
@@ -11407,9 +11431,9 @@ body.theme-light #dashboardDetail *, body.theme-light .dashboard-detail-wrapper 
                     ${true ? `
                     <div class="rounded-xl bg-slate-950 border border-slate-800 p-4">
                         <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">Status Waktu</div>
-                        <div class="inline-flex items-center gap-2 px-3 py-2 rounded-lg ${getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500/10 border border-rose-500/20 text-rose-300' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'} text-xs font-semibold">
-                            <span class="w-2 h-2 rounded-full ${getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500' : 'bg-blue-500'}"></span>
-                            ${getAttendanceScheduleState(event) === 'attendance-past' ? 'Sudah berlangsung' : 'Akan dimulai'}
+                        <div class="inline-flex items-center gap-2 px-3 py-2 rounded-lg ${!event.time ? 'bg-slate-500/10 border border-slate-500/20 text-slate-300' : (getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500/10 border border-rose-500/20 text-rose-300' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300')} text-xs font-semibold">
+                            <span class="w-2 h-2 rounded-full ${!event.time ? 'bg-slate-400' : (getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500' : 'bg-blue-500')}"></span>
+                            ${!event.time ? 'Waktu belum diberi tahu' : (getAttendanceScheduleState(event) === 'attendance-past' ? 'Sudah berlangsung' : 'Akan dimulai')}
                         </div>
                     </div>` : ''}
 
