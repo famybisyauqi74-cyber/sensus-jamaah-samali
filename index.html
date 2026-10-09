@@ -9745,7 +9745,32 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                         console.warn('Query Sensus dengan order gagal, mencoba query dasar:', error);
                         ({ data, error } = await window.samaliDb.from('sensus_jamaah').select('*'));
                     }
-                    if (error) throw error;
+                    if (error) {
+                        console.warn('Supabase Sensus tidak dapat dibaca; mencoba sumber data lama:', error);
+                        try {
+                            const legacyRead=await serverJsonpGet({action:'getSensus'},12000);
+                            if(legacyRead?.status==='success' && Array.isArray(legacyRead.data) && legacyRead.data.length){
+                                const fallbackRows=legacyRead.data.map((x,index)=>({
+                                    id:String(x.id??index+1),
+                                    noKeluarga:String(x.noKeluarga??x.no_keluarga??x.no_kk??x['No. Keluarga']??''),
+                                    no:Number(x.noJamaah??x.no_jamaah??x.no??x['NO. JAMAAH']??index+1)||index+1,
+                                    kodeKelg:String(x.kode_kk??x.kodeKelg??x.kode_kelg??x['KODE KELG.']??''),
+                                    pref:String(x.gelar??x.pref??x.PREF??''), nama:String(x.nama??x.NAMA??''),
+                                    lp:String(x.lp??x['L/P']??'').toUpperCase(),
+                                    tempatLahir:String(x.tempatLahir??x.tempat_lahir??x['TEMPAT LAHIR']??splitBirthPlaceDate(x.ttl??'').place??''),
+                                    tanggalLahir:String(x.tanggalLahir??x.tgl_lahir??x['TGL LAHIR']??splitBirthPlaceDate(x.ttl??'').date??''),
+                                    ttl:[String(x.tempatLahir??x.tempat_lahir??x['TEMPAT LAHIR']??splitBirthPlaceDate(x.ttl??'').place??''),String(x.tanggalLahir??x.tgl_lahir??x['TGL LAHIR']??splitBirthPlaceDate(x.ttl??'').date??'')].filter(Boolean).join(', '),
+                                    umur:Number(x.umur??x.UMUR??0)||0,
+                                    statusBk:String(x.statusHubungan??x.statusBk??x.status_bk??x['B/K/J/D']??'').toUpperCase(),
+                                    status:String(x.status??x.STATUS??''), alamat:String(x.alamat??x.alamatRumah??x['ALAMAT RUMAH']??''),
+                                    telepon:String(x.telepon??x.TELEPON??''), ket:String(x.keterangan??x.ket??x.KET??'')
+                                })).filter(x=>x.nama);
+                                applySensusServerData(fallbackRows);
+                                return true;
+                            }
+                        } catch(fallbackError) { console.warn('Sumber data lama juga tidak dapat dibaca:',fallbackError); }
+                        throw error;
+                    }
 
                     if(!(data||[]).length){
                         const migrated=await migrateLegacySensusToSupabase();
@@ -9852,25 +9877,29 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                 let authUser=null;
                 let {data,error}=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
                 if(!error){authUser=data?.user||null}
+                let legacyProfile=null;
                 if(!authUser){
-                    let legacy=null;
-                    try{legacy=await serverLoginGet(emailInput,passwordInput,12000)}catch(e){legacy=null}
-                    if(!legacy || legacy.status!=='success') throw new Error(error?.message==='Invalid login credentials' ? 'Email atau kata sandi belum terdaftar di Supabase Auth.' : (legacy?.message||error?.message||'Email atau kata sandi tidak cocok.'));
-                    const fullName=String(legacy.nama||'').trim()||emailInput.split('@')[0];
-                    const accountStatus=String(legacy.statusAkun||legacy.accountStatus||legacy.role||legacy.jabatan||legacy.userStatus||'').trim();
-                    const sign=await window.samaliDb.auth.signUp({email:emailInput,password:passwordInput,options:{data:{full_name:fullName,nama:fullName,statusAkun:accountStatus,legacy_migrated:true}}});
-                    if(sign.error && !/already registered|already exists/i.test(sign.error.message||'')) throw sign.error;
-                    if(sign.data?.user && sign.data?.session){authUser=sign.data.user}
-                    else {
-                        const retry=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
-                        if(retry.error) throw new Error('Akun lama berhasil ditemukan, tetapi Supabase meminta verifikasi email. Matikan Email Confirmation di Supabase Auth atau konfirmasi email akun tersebut.');
-                        authUser=retry.data?.user||null;
+                    try{legacyProfile=await serverLoginGet(emailInput,passwordInput,12000)}catch(e){legacyProfile=null}
+                    if(!legacyProfile) throw new Error('Login sedang bermasalah. Coba lagi beberapa saat.');
+                    if(legacyProfile.status!=='success') throw new Error('Email atau kata sandi tidak cocok. Periksa kembali lalu coba lagi.');
+                    const legacyName=String(legacyProfile.nama||'').trim()||emailInput.split('@')[0];
+                    const legacyStatus=String(legacyProfile.statusAkun||legacyProfile.accountStatus||legacyProfile.role||legacyProfile.jabatan||legacyProfile.userStatus||'').trim();
+                    // Coba buat/masuk ke akun Supabase, tetapi jangan menghalangi pengguna
+                    // yang sudah berhasil diverifikasi oleh layanan login lama.
+                    try {
+                        const sign=await window.samaliDb.auth.signUp({email:emailInput,password:passwordInput,options:{data:{full_name:legacyName,nama:legacyName,statusAkun:legacyStatus,legacy_migrated:true}}});
+                        if(!sign.error && sign.data?.user && sign.data?.session) authUser=sign.data.user;
+                        if(!authUser){
+                            const retry=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
+                            if(!retry.error) authUser=retry.data?.user||null;
+                        }
+                    } catch(authSetupError) {
+                        console.warn('Akun akan memakai verifikasi login yang tersedia:',authSetupError);
                     }
-                    if(!authUser) throw new Error('Akun Supabase belum siap.');
                 }
-                const meta=authUser.user_metadata||{};
-                const fullName=String(meta.full_name||meta.nama||meta.name||emailInput.split('@')[0]).trim();
-                const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||'').trim();
+                const meta=authUser?.user_metadata||{};
+                const fullName=String(meta.full_name||meta.nama||meta.name||legacyProfile?.nama||emailInput.split('@')[0]).trim();
+                const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||legacyProfile?.statusAkun||legacyProfile?.accountStatus||legacyProfile?.role||legacyProfile?.jabatan||'').trim();
                 await appLoginSuccess(emailInput,fullName,accountStatus);
                 showToast(`Selamat datang, ${fullName}.`,'success');
             }catch(error){console.error('Login gagal:',error);showAlertBox(error?.message||'Email atau kata sandi tidak cocok.','error')}

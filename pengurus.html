@@ -7911,7 +7911,27 @@ async function loadSensus(isInitial=false){
       console.warn('Query Sensus dengan order gagal, mencoba query dasar:',error);
       ({data,error}=await window.samaliDb.from('sensus_jamaah').select('*'));
     }
-    if(error)throw error;
+    if(error){
+      console.warn('Supabase Sensus tidak dapat dibaca; mencoba sumber data lama:',error);
+      try{
+        const legacy=await apiJsonp({action:'getSensus'},12000);
+        if(legacy?.status==='success'&&Array.isArray(legacy.data)&&legacy.data.length){
+          sensusItems=legacy.data.map((x,i)=>normalizeSensusRow({
+            id:x.id??i+1,
+            'No. Keluarga':x.noKeluarga??x.no_keluarga??x.no_kk??x['No. Keluarga']??'',
+            'NO. JAMAAH':x.noJamaah??x.no_jamaah??x.no??x['NO. JAMAAH']??i+1,
+            'KODE KELG.':x.kode_kk??x.kodeKelg??x.kode_kelg??x['KODE KELG.']??'',
+            'PREF':x.gelar??x.pref??x.PREF??'', 'NAMA':x.nama??x.NAMA??'', 'L/P':x.lp??x['L/P']??'',
+            'TEMPAT LAHIR':x.tempatLahir??x.tempat_lahir??x['TEMPAT LAHIR']??splitBirthPlaceDate(x.ttl??'').place??'',
+            'TGL LAHIR':x.tanggalLahir??x.tgl_lahir??x['TGL LAHIR']??splitBirthPlaceDate(x.ttl??'').date??'', 'UMUR':x.umur??x.UMUR??0,
+            'B/K/J/D':x.statusHubungan??x.statusBk??x.status_bk??x['B/K/J/D']??'', 'STATUS':x.status??x.STATUS??'',
+            'ALAMAT RUMAH':x.alamat??x.alamatRumah??x['ALAMAT RUMAH']??'', 'TELEPON':x.telepon??x.TELEPON??'', 'KET':x.keterangan??x.ket??x.KET??''
+          })).filter(x=>x.nama);
+          pengurusSensusFingerprint=stableDataFingerprint(sensusItems);renderSensus();renderAgeSummary();renderPortalSummary();return true;
+        }
+      }catch(fallbackError){console.warn('Sumber data lama juga tidak dapat dibaca:',fallbackError)}
+      throw error;
+    }
     sensusItems=Array.isArray(data)?data.map(normalizeSensusRow):[];
     if(!sensusItems.length){
       const migrated=await migrateLegacySensusToSupabase();
@@ -7928,7 +7948,7 @@ async function loadSensus(isInitial=false){
     return true;
   }catch(e){
     console.error('Supabase Sensus Pengurus:',e);
-    if(isInitial&&document.getElementById('sensusBody'))document.getElementById('sensusBody').innerHTML='<tr><td colspan="14" class="px-5 py-10 text-center text-rose-500">Sensus belum dapat dimuat. Periksa koneksi Supabase / RLS.</td></tr>';
+    if(isInitial&&document.getElementById('sensusBody'))document.getElementById('sensusBody').innerHTML='<tr><td colspan="14" class="px-5 py-10 text-center text-rose-500">Data jamaah belum dapat ditampilkan. Silakan coba lagi beberapa saat.</td></tr>';
     return false;
   }
 }
