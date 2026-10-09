@@ -8941,6 +8941,19 @@ html:not(.dark) .dashboard-detail-stat-card .text-white{color:#0f172a!important}
 html:not(.dark) .dashboard-detail-stat-card .text-slate-400{color:#64748b!important}
 html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;color:#0f172a!important;border-color:#cbd5e1!important}
 </style>
+
+<style id="samali-theme-consistency-fixes">
+/* Menjaga komponen utama tetap sesuai tema aktif. */
+html.dark #dashboardDetail, body.dark #dashboardDetail, body.dark-mode #dashboardDetail, html.dark .dashboard-detail-wrapper, body.dark .dashboard-detail-wrapper, body.dark-mode .dashboard-detail-wrapper, html.dark .dashboard-detail-header, body.dark .dashboard-detail-header, body.dark-mode .dashboard-detail-header { background:#0f172a!important; color:#e2e8f0!important; border-color:#334155!important; }
+html.dark .samali-copy-btn, body.dark .samali-copy-btn, body.dark-mode .samali-copy-btn { background:#1e293b!important; color:#cbd5e1!important; border-color:#475569!important; box-shadow:none!important; }
+html.dark input[type="date"]::-webkit-calendar-picker-indicator, body.dark input[type="date"]::-webkit-calendar-picker-indicator, body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator, html.dark input[type="month"]::-webkit-calendar-picker-indicator, body.dark input[type="month"]::-webkit-calendar-picker-indicator, body.dark-mode input[type="month"]::-webkit-calendar-picker-indicator { filter:invert(1)!important; opacity:1!important; cursor:pointer; }
+html.dark select, body.dark select, body.dark-mode select { color-scheme:dark; }
+body.theme-light #helpButton:hover, body.theme-light [data-help-button]:hover, body.theme-light button[onclick*="openHelp"]:hover { color:#0f172a!important; background:#e2e8f0!important; }
+body.theme-light #helpButton:hover *, body.theme-light [data-help-button]:hover *, body.theme-light button[onclick*="openHelp"]:hover * { color:#0f172a!important; }
+body.theme-light #dashboardDetail, body.theme-light .dashboard-detail-wrapper, body.theme-light .dashboard-detail-header { background:#fff!important; color:#0f172a!important; border-color:#cbd5e1!important; }
+body.theme-light #dashboardDetail *, body.theme-light .dashboard-detail-wrapper * { border-color:#cbd5e1; }
+</style>
+
 </head>
 <script id="samali-supabase-bootstrap">
 (function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});})();
@@ -11391,12 +11404,12 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                         </div>
                     </div>
 
-                    ${event.type === 'attendance' ? `
+                    ${true ? `
                     <div class="rounded-xl bg-slate-950 border border-slate-800 p-4">
                         <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">Status Waktu</div>
                         <div class="inline-flex items-center gap-2 px-3 py-2 rounded-lg ${getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500/10 border border-rose-500/20 text-rose-300' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'} text-xs font-semibold">
                             <span class="w-2 h-2 rounded-full ${getAttendanceScheduleState(event) === 'attendance-past' ? 'bg-rose-500' : 'bg-blue-500'}"></span>
-                            ${getAttendanceScheduleState(event) === 'attendance-past' ? 'Sudah berlangsung' : 'Akan berlangsung'}
+                            ${getAttendanceScheduleState(event) === 'attendance-past' ? 'Sudah berlangsung' : 'Akan dimulai'}
                         </div>
                     </div>` : ''}
 
@@ -11998,7 +12011,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
         function setRekapPercentageCategory(category) { rekapPercentageCategory = category || 'all'; renderRekapPage(); }
 
         let rekapRange = 'today';
-        let rekapReference = getDateKey(new Date(Date.now() - 86400000));
+        let rekapReference = getDateKey(new Date());
 
         function getHistoricalReferenceDate() {
             const d = new Date();
@@ -12008,20 +12021,19 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
         }
 
         function getRekapRange() {
-            const yesterday = getHistoricalReferenceDate();
-            const fallbackKey = getDateKey(yesterday);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const fallbackKey = getDateKey(today);
             const refText = String(rekapReference || fallbackKey);
             if (rekapRange === 'today') {
                 const ref = new Date(`${refText}T00:00:00`);
-                const safe = Number.isNaN(ref.getTime()) || ref >= new Date(new Date().setHours(0,0,0,0)) ? yesterday : ref;
+                const safe = Number.isNaN(ref.getTime()) || ref > today ? today : ref;
                 const key = getDateKey(safe);
                 return { start:key, end:key, label:`Tanggal ${key}` };
             }
             if (rekapRange === 'week') {
                 let ref = new Date(`${refText}T00:00:00`);
                 if (Number.isNaN(ref.getTime())) ref = yesterday;
-                const currentWeekStart = getStartOfWeek(new Date());
-                if (ref >= currentWeekStart) ref = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate()-7);
+                if (ref > new Date()) ref = new Date();
                 const start = getStartOfWeek(ref), end = getEndOfWeek(ref);
                 return { start:getDateKey(start), end:getDateKey(end), label:`Pekan ${getDateKey(start)} s/d ${getDateKey(end)}` };
             }
@@ -12031,31 +12043,29 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                 if (!y || !Number.isFinite(y) || !Number.isFinite(m)) { y=yesterday.getFullYear(); m=yesterday.getMonth(); }
                 const currentMonthStart = new Date(new Date().getFullYear(),new Date().getMonth(),1);
                 let refMonth = new Date(y,m,1);
-                if (refMonth >= currentMonthStart) refMonth = new Date(currentMonthStart.getFullYear(),currentMonthStart.getMonth()-1,1);
+                if (refMonth > currentMonthStart) refMonth = currentMonthStart;
                 return { start:getDateKey(refMonth), end:getDateKey(new Date(refMonth.getFullYear(),refMonth.getMonth()+1,0)), label:`Bulan ${String(refMonth.getMonth()+1).padStart(2,'0')}/${refMonth.getFullYear()}` };
             }
             let year = Number(refText);
             const currentYear = new Date().getFullYear();
-            if (!Number.isFinite(year) || year >= currentYear) year = currentYear - 1;
+            if (!Number.isFinite(year) || year > currentYear) year = currentYear;
             return { start:`${year}-01-01`, end:`${year}-12-31`, label:`Tahun ${year}` };
         }
 
         function setRekapRange(value) {
             if (!['today','week','month','year'].includes(value)) return;
             const now = new Date();
-            const yesterday = getHistoricalReferenceDate();
             rekapRange = value;
-            if (value === 'year') rekapReference = String(now.getFullYear()-1);
-            else if (value === 'month') rekapReference = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}`;
-            else if (value === 'week') { const d = getStartOfWeek(yesterday); rekapReference = getDateKey(d); }
-            else rekapReference = getDateKey(yesterday);
+            if (value === 'year') rekapReference = String(now.getFullYear());
+            else if (value === 'month') rekapReference = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            else if (value === 'week') { const d = getStartOfWeek(now); rekapReference = getDateKey(d); }
+            else rekapReference = getDateKey(now);
             renderRekapPage();
         }
 
         function setRekapReference(value) {
-            rekapReference = value || getDateKey(getHistoricalReferenceDate());
+            rekapReference = value || getDateKey(new Date());
             const range = getRekapRange();
-            // Jika user menunjuk periode yang sedang berjalan, otomatis mundur ke periode sebelumnya.
             if (rekapRange === 'today') rekapReference = range.start;
             else if (rekapRange === 'year') rekapReference = String(new Date(range.start).getFullYear());
             else if (rekapRange === 'month') rekapReference = range.start.slice(0,7);
@@ -12117,7 +12127,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
             mainArea.innerHTML = `
                 <div class="max-w-7xl mx-auto w-full px-1 sm:px-4 pb-8">
                     <div class="mb-6"><div class="flex items-center gap-2 mb-2"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i data-lucide="chart-no-axes-column" class="w-3.5 h-3.5"></i>Rekap Pengajian</span></div><h3 class="text-2xl font-bold text-white tracking-tight">Rekap Pengajian</h3><p class="text-sm text-slate-400 mt-1">Rekap hanya untuk Pengajian Umum dan Pengajian Ibu-Ibu.</p></div>
-                    <div class="samali-rekap-period bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="samali-rekap-period-copy"><p class="text-xs font-bold text-white">Periode Rekap</p><p class="text-[11px] text-slate-500 mt-1">Pilih periode yang SUDAH lewat. Periode hari/minggu/bulan/tahun yang sedang berjalan tidak ditampilkan agar pencatatan yang belum lengkap tidak terbaca sebagai hasil akhir.</p></div><div class="samali-rekap-period-controls flex flex-wrap gap-2"><select onchange="setRekapRange(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"><option value="today" ${rekapRange==='today'?'selected':''}>Sehari</option><option value="week" ${rekapRange==='week'?'selected':''}>Seminggu</option><option value="month" ${rekapRange==='month'?'selected':''}>Sebulan</option><option value="year" ${rekapRange==='year'?'selected':''}>Setahun</option></select><input type="${refType}" value="${escapeHtml(rekapReference)}" ${refType === 'date' ? `max="${getDateKey(getHistoricalReferenceDate())}"` : ''} onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div></div>
+                    <div class="samali-rekap-period bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="samali-rekap-period-copy"><p class="text-xs font-bold text-white">Periode Rekap</p><p class="text-[11px] text-slate-500 mt-1">Pilih tanggal atau periode yang ingin diperiksa, termasuk hari ini. Rekap mengikuti data absen yang sudah tersimpan.</p></div><div class="samali-rekap-period-controls flex flex-wrap gap-2"><select onchange="setRekapRange(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"><option value="today" ${rekapRange==='today'?'selected':''}>Sehari</option><option value="week" ${rekapRange==='week'?'selected':''}>Seminggu</option><option value="month" ${rekapRange==='month'?'selected':''}>Sebulan</option><option value="year" ${rekapRange==='year'?'selected':''}>Setahun</option></select><input type="${refType}" value="${escapeHtml(rekapReference)}" ${refType === 'date' ? `max="${getDateKey(new Date())}"` : ''} onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div></div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         ${[['umum','Pengajian Umum',umum],['ibu','Pengajian Ibu-Ibu',ibu]].map(([cat,label,summary])=>`<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl"><div class="flex items-start justify-between gap-3"><div><h4 class="text-lg font-bold text-white">${label}</h4><p class="text-[11px] text-slate-500 mt-1">${cat==='umum'?'Usia Mandiri dan Lansia.':'Semua perempuan yang Usia Mandiri dan Lansia.'}</p></div><div class="text-right"><div class="text-3xl font-extrabold text-emerald-400">${summary.percentage}%</div><div class="text-[10px] text-slate-500">persentase hadir</div></div></div><div class="grid grid-cols-4 gap-2 mt-5"><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-emerald-400">${summary.H}</div><div class="text-[9px] text-slate-500">Hadir</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-amber-400">${summary.S}</div><div class="text-[9px] text-slate-500">Sakit</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-blue-400">${summary.I}</div><div class="text-[9px] text-slate-500">Izin</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-rose-400">${summary.A}</div><div class="text-[9px] text-slate-500">Alpa</div></div></div><div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-800"><span class="text-[11px] text-slate-500">${summary.total} catatan kehadiran · ${range.label}</span><button type="button" onclick="openRekapDetail('${cat}')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2"><i data-lucide="list" class="w-4 h-4"></i>Detail</button></div></div>`).join('')}
                     </div>
@@ -12777,30 +12787,14 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
             const authOverlay = document.getElementById('authOverlay');
             const mainAppLayout = document.getElementById('mainAppLayout');
 
-            // Login sekarang memakai Supabase Auth. Jika sesi Supabase masih aktif,
-            // pengguna langsung masuk tanpa harus mengulang login.
-            if (authOverlay) authOverlay.classList.remove('hidden');
+            // Keamanan: halaman index selalu meminta login manual saat dibuka.
+            // Sesi Auth yang tersimpan tidak otomatis membuka dashboard.
+            if (authOverlay) { authOverlay.classList.remove('hidden'); authOverlay.style.display=''; authOverlay.setAttribute('aria-hidden','false'); }
             if (mainAppLayout) mainAppLayout.classList.add('hidden');
-
             const emailInput = document.getElementById('userEmailInput');
             const passwordInput = document.getElementById('userPasswordInput');
             if (passwordInput) passwordInput.value = '';
-
             lucide.createIcons();
-
-            (async()=>{
-                try{
-                    const sessionResult=await window.samaliDb?.auth?.getSession();
-                    const user=sessionResult?.data?.session?.user;
-                    if(!user) return;
-                    const meta=user.user_metadata||{};
-                    const fullName=String(meta.full_name||meta.nama||meta.name||user.email?.split('@')[0]||'Pengguna').trim();
-                    const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||'').trim();
-                    await appLoginSuccess(user.email||'',fullName,accountStatus);
-                }catch(e){
-                    console.warn('Sesi Supabase belum dapat dipulihkan:',e);
-                }
-            })();
         });
     </script>
 <script id="samali-custom-cursor-script">
@@ -12966,5 +12960,20 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
 (function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true))
     .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah?.()).subscribe();},1000);})();
 </script>
+
+<script id="samali-login-bfcache-guard">
+(function(){
+  function lockDashboard(){
+    const overlay=document.getElementById('authOverlay');
+    const app=document.getElementById('mainAppLayout');
+    const password=document.getElementById('userPasswordInput');
+    if(overlay){overlay.classList.remove('hidden');overlay.style.display='';overlay.setAttribute('aria-hidden','false');}
+    if(app)app.classList.add('hidden');
+    if(password)password.value='';
+  }
+  window.addEventListener('pageshow',function(e){if(e.persisted)lockDashboard();});
+})();
+</script>
+
 </body>
 </html>

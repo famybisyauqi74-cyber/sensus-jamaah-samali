@@ -9589,5 +9589,22 @@ document.addEventListener('DOMContentLoaded', function(){
   window.samaliDb.channel('samali-jamaah-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadJadwal()).subscribe();
 })();
 </script>
+
+<script id="samali-jamaah-schedule-realtime-fix">
+(function(){
+  let client=null, channel=null, busy=false;
+  async function refresh(){
+    if(busy||!window.supabase?.createClient)return; busy=true;
+    try{
+      client=client||window.supabase.createClient('https://eopktyqzztmmvimyedmh.supabase.co','sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR',{auth:{persistSession:false}});
+      if(typeof loadJadwal==='function') await loadJadwal();
+      if(!channel) channel=client.channel('samali-jamaah-jadwal-refresh').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>{if(typeof loadJadwal==='function')loadJadwal();}).subscribe();
+    }catch(e){console.warn('Jadwal belum tersinkron:',e)}finally{busy=false}
+  }
+  window.addEventListener('pageshow',()=>setTimeout(refresh,200));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+})();
+</script>
+
 </body>
 </html>

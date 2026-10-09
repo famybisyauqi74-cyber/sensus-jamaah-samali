@@ -7758,6 +7758,13 @@ html:not(.dark) .samali-copy-btn, body.theme-light .samali-copy-btn{background:#
 html:not(.dark) .samali-copy-btn:hover, body.theme-light .samali-copy-btn:hover{background:#ecfdf5!important;color:#047857!important;border-color:#86efac!important}
 html.dark .samali-copy-btn, body.dark .samali-copy-btn, body.dark-mode .samali-copy-btn{background:#1e293b!important;color:#cbd5e1!important;border-color:#334155!important}
 </style>
+
+<style id="samali-pengurus-theme-fixes">
+html.dark input[type="date"]::-webkit-calendar-picker-indicator, body.dark input[type="date"]::-webkit-calendar-picker-indicator, body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator, html.dark input[type="month"]::-webkit-calendar-picker-indicator, body.dark input[type="month"]::-webkit-calendar-picker-indicator, body.dark-mode input[type="month"]::-webkit-calendar-picker-indicator { filter:invert(1)!important; opacity:1!important; }
+html.dark .samali-copy-btn, body.dark .samali-copy-btn, body.dark-mode .samali-copy-btn { background:#1e293b!important; color:#cbd5e1!important; border-color:#475569!important; }
+body.theme-light button[onclick*="openHelp"]:hover, body.theme-light button[onclick*="openHelp"]:hover * { color:#0f172a!important; background:#e2e8f0!important; }
+</style>
+
 </head>
 <body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
 <header class="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
@@ -7934,13 +7941,22 @@ async function loadSensus(isInitial=false){
     }
     sensusItems=Array.isArray(data)?data.map(normalizeSensusRow):[];
     if(!sensusItems.length){
-      const migrated=await migrateLegacySensusToSupabase();
-      if(migrated){
-        ({data,error}=await window.samaliDb.from('sensus_jamaah').select('*').order('NO. JAMAAH',{ascending:true}).order('id',{ascending:true}));
-        if(error){ ({data,error}=await window.samaliDb.from('sensus_jamaah').select('*')); }
-        if(error) throw error;
-        sensusItems=Array.isArray(data)?data.map(normalizeSensusRow):[];
-      }
+      // Baca sumber lama hanya sebagai fallback; jangan menulis/migrasikan data dari halaman pengurus.
+      try{
+        const legacy=await apiJsonp({action:'getSensus'},12000);
+        if(legacy?.status==='success'&&Array.isArray(legacy.data)&&legacy.data.length){
+          sensusItems=legacy.data.map((x,i)=>normalizeSensusRow({
+            id:x.id??i+1,'No. Keluarga':x.noKeluarga??x.no_keluarga??x.no_kk??x['No. Keluarga']??'',
+            'NO. JAMAAH':x.noJamaah??x.no_jamaah??x.no??x['NO. JAMAAH']??i+1,
+            'KODE KELG.':x.kode_kk??x.kodeKelg??x.kode_kelg??x['KODE KELG.']??'',
+            'PREF':x.gelar??x.pref??x.PREF??'', 'NAMA':x.nama??x.NAMA??'', 'L/P':x.lp??x['L/P']??'',
+            'TEMPAT LAHIR':x.tempatLahir??x.tempat_lahir??x['TEMPAT LAHIR']??splitBirthPlaceDate(x.ttl??'').place??'',
+            'TGL LAHIR':x.tanggalLahir??x.tgl_lahir??x['TGL LAHIR']??splitBirthPlaceDate(x.ttl??'').date??'', 'UMUR':x.umur??x.UMUR??0,
+            'B/K/J/D':x.statusHubungan??x.statusBk??x.status_bk??x['B/K/J/D']??'', 'STATUS':x.status??x.STATUS??'',
+            'ALAMAT RUMAH':x.alamat??x.alamatRumah??x['ALAMAT RUMAH']??'', 'TELEPON':x.telepon??x.TELEPON??'', 'KET':x.keterangan??x.ket??x.KET??''
+          })).filter(x=>x.nama);
+        }
+      }catch(fallbackError){console.warn('Fallback sensus belum tersedia:',fallbackError)}
     }
     pengurusSensusFingerprint=stableDataFingerprint(sensusItems);
     renderSensus();renderAgeSummary();renderPortalSummary();
