@@ -7776,6 +7776,7 @@ body.theme-light button[onclick*="openHelp"]:hover, body.theme-light button[oncl
 <button class="samali-common-nav nav-item px-3 py-2 rounded-lg border border-transparent text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" id="navJadwal" onclick="showPage('jadwal')">Jadwal Kegiatan</button>
 <button class="samali-common-nav nav-item px-3 py-2 rounded-lg border border-transparent text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" id="navMusyawarah" onclick="showPage('musyawarah')">Hasil Musyawarah</button>
 <button class="samali-common-nav nav-item px-3 py-2 rounded-lg border border-transparent text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" id="navSensus" onclick="showPage('sensus')">Sensus Jamaah</button>
+<button class="samali-common-nav nav-item px-3 py-2 rounded-lg border border-transparent text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" id="navRekap" onclick="showPage('rekap')">Rekap Absen</button>
 <button class="samali-theme-btn" id="themeBtn" onclick="toggleTheme()" title="Ganti mode tampilan"><i data-lucide="moon"></i></button>
 <button class="px-3 py-2 rounded-lg border border-transparent text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" onclick="openHelp()">Pusat Bantuan</button>
 </nav>
@@ -7786,6 +7787,7 @@ body.theme-light button[onclick*="openHelp"]:hover, body.theme-light button[oncl
 <button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="mobileNav('jadwal')">📅 Jadwal Kegiatan</button>
 <button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="mobileNav('musyawarah')">📋 Hasil Musyawarah</button>
 <button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="mobileNav('sensus')">👥 Sensus Jamaah</button>
+<button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="mobileNav('rekap')">📊 Rekap Absen</button>
 <button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="toggleTheme()">🌓 Ganti Mode Terang / Gelap</button>
 <button class="w-full text-left px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="openHelp()">💬 Pusat Bantuan</button>
 </div>
@@ -7825,6 +7827,11 @@ body.theme-light button[onclick*="openHelp"]:hover, body.theme-light button[oncl
 <th class="px-4 py-3 sticky-col-1">No</th><th class="px-4 py-3 sticky-col-2">Kode KK</th><th class="px-4 py-3 sticky-col-3">Gelar</th><th class="px-4 py-3 sticky-col-4">Nama Lengkap</th><th class="px-4 py-3">L/P</th><th class="px-4 py-3">Tempat Lahir</th><th class="px-4 py-3">Tanggal Lahir</th><th class="px-4 py-3">Usia</th><th class="px-4 py-3">Status Hubungan</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Alamat</th><th class="px-4 py-3">Telepon</th><th class="px-4 py-3">Keterangan</th><th class="px-4 py-3 text-right">Aksi</th>
 </tr></thead><tbody id="sensusBody"></tbody></table></div>
 </div>
+</section>
+<section class="page" id="pageRekap">
+<div class="mb-6"><p class="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">ABSENSI</p><h2 class="text-3xl font-black text-slate-900 dark:text-white mt-1">Rekap Absensi Bulanan</h2><p class="text-slate-500 dark:text-slate-400 mt-2">Hasil tersimpan di Supabase. Halaman Pengurus hanya dapat melihat rekap.</p></div>
+<div class="panel rounded-2xl border p-4 mb-5 flex flex-wrap items-center justify-between gap-3"><div><div class="font-bold text-slate-900 dark:text-white">Pilih Bulan</div><p class="text-xs text-slate-500 mt-1">Hadir, Sakit, Izin, Alpa, dan persentase dihitung per bulan.</p></div><input type="month" id="pengurusAttendanceMonth" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" onchange="loadPengurusAttendance()" /></div>
+<div id="pengurusAttendanceStatus" class="text-xs text-slate-500 mb-4"></div><div id="pengurusAttendanceSummary" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5"></div><div class="panel rounded-2xl border overflow-hidden"><div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-bold text-slate-900 dark:text-white">Rangkuman Per Jamaah</h3><p class="text-xs text-slate-500 mt-1">HISA dan persentase hadir per orang selama bulan yang dipilih.</p></div><select id="pengurusAttendanceCategory" onchange="renderPengurusAttendance()" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"><option value="all">Gabungan / Semua Kategori</option><option value="umum">Pengajian Umum</option><option value="ibu">Pengajian Ibu-Ibu</option></select></div><div class="overflow-x-auto"><table class="w-full text-sm text-left min-w-[760px]"><thead class="bg-slate-800 text-slate-300"><tr><th class="px-4 py-3">No</th><th class="px-4 py-3">Nama Jamaah</th><th class="px-4 py-3 text-center">Hadir (H)</th><th class="px-4 py-3 text-center">Sakit (S)</th><th class="px-4 py-3 text-center">Izin (I)</th><th class="px-4 py-3 text-center">Alpa (A)</th><th class="px-4 py-3 text-center">Total</th><th class="px-4 py-3 text-center">Persentase</th></tr></thead><tbody id="pengurusAttendanceBody"></tbody></table></div></div>
 </section>
 </main>
 <div class="hidden fixed inset-0 z-50 bg-slate-950/70 p-4 flex items-center justify-center" id="helpModal">
@@ -8013,6 +8020,33 @@ function renderMusyawarah(){
   }).join(''):'<div class="panel rounded-2xl border p-8 text-center text-sm text-slate-500">Belum ada hasil musyawarah.</div>';
 }
 
+let pengurusAttendanceRows=[];
+function currentPengurusMonth(){const el=document.getElementById('pengurusAttendanceMonth');return el?.value||`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`}
+async function loadPengurusAttendance(){
+  const status=document.getElementById('pengurusAttendanceStatus');
+  if(status)status.textContent='Memuat rekap dari Supabase...';
+  if(!window.samaliDb){if(status)status.textContent='Koneksi Supabase belum siap.';return}
+  const month=currentPengurusMonth();const start=`${month}-01`;const [y,m]=month.split('-').map(Number);const end=`${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;
+  try{
+    const data=[];let offset=0;const pageSize=1000;
+    while(true){const q=await window.samaliDb.from('absensi_jamaah').select('category,attendance_date,jamaah_id,jamaah_name,status').gte('attendance_date',start).lte('attendance_date',end).order('jamaah_name',{ascending:true}).range(offset,offset+pageSize-1);if(q.error)throw q.error;data.push(...(q.data||[]));if(!q.data||q.data.length<pageSize)break;offset+=pageSize;}
+    pengurusAttendanceRows=data;
+    if(status)status.textContent=`Periode ${new Date(y,m-1,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'})} · ${pengurusAttendanceRows.length} catatan tersimpan`;
+    renderPengurusAttendance();return true;
+  }catch(e){console.error('Rekap absensi Pengurus gagal dimuat:',e);pengurusAttendanceRows=[];if(status)status.textContent=`Rekap belum dapat dimuat. Pastikan tabel absensi_jamaah sudah dibuat di Supabase. ${e.message||''}`;renderPengurusAttendance();return false}
+}
+function renderPengurusAttendance(){
+  const month=currentPengurusMonth();const category=document.getElementById('pengurusAttendanceCategory')?.value||'all';
+  const rows=pengurusAttendanceRows.filter(r=>category==='all'||r.category===category);
+  const counts={H:0,S:0,I:0,A:0};const people=new Map();
+  rows.forEach(r=>{const st=String(r.status||'').toUpperCase();if(counts[st]!==undefined)counts[st]++;const id=String(r.jamaah_id||'');if(!people.has(id))people.set(id,{id,name:r.jamaah_name||id,H:0,S:0,I:0,A:0});if(counts[st]!==undefined)people.get(id)[st]++;});
+  const total=counts.H+counts.S+counts.I+counts.A;const pct=total?Math.round(counts.H/total*1000)/10:0;
+  const summary=document.getElementById('pengurusAttendanceSummary');if(summary)summary.innerHTML=[['Gabungan Semua Kategori',pengurusAttendanceRows.filter(r=>['H','S','I','A'].includes(String(r.status||'').toUpperCase())).reduce((a,r)=>{a[String(r.status).toUpperCase()]++;return a},{H:0,S:0,I:0,A:0})],['Pengajian Umum',pengurusAttendanceRows.filter(r=>r.category==='umum').reduce((a,r)=>{const st=String(r.status||'').toUpperCase();if(a[st]!==undefined)a[st]++;return a},{H:0,S:0,I:0,A:0})],['Pengajian Ibu-Ibu',pengurusAttendanceRows.filter(r=>r.category==='ibu').reduce((a,r)=>{const st=String(r.status||'').toUpperCase();if(a[st]!==undefined)a[st]++;return a},{H:0,S:0,I:0,A:0})]].map(([label,c])=>{const n=c.H+c.S+c.I+c.A;return `<div class="panel rounded-2xl border p-4"><div class="text-xs font-bold text-slate-500">${esc(label)}</div><div class="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">${n?Math.round(c.H/n*1000)/10:0}% <span class="text-xs font-semibold">Hadir</span></div><div class="mt-3 grid grid-cols-4 gap-2 text-center text-xs"><div><b class="text-emerald-600 dark:text-emerald-400">${c.H}</b><div class="text-slate-500">H</div></div><div><b class="text-amber-600 dark:text-amber-400">${c.S}</b><div class="text-slate-500">S</div></div><div><b class="text-blue-600 dark:text-blue-400">${c.I}</b><div class="text-slate-500">I</div></div><div><b class="text-rose-600 dark:text-rose-400">${c.A}</b><div class="text-slate-500">A</div></div></div></div>`}).join('');
+  const body=document.getElementById('pengurusAttendanceBody');if(!body)return;
+  const list=[...people.values()].sort((a,b)=>a.name.localeCompare(b.name,'id'));
+  body.innerHTML=list.length?list.map((r,i)=>{const n=r.H+r.S+r.I+r.A;return `<tr class="border-t border-slate-200 dark:border-slate-800"><td class="px-4 py-3 text-slate-500">${i+1}</td><td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">${esc(r.name)}</td><td class="px-4 py-3 text-center text-emerald-600 dark:text-emerald-400">${r.H}</td><td class="px-4 py-3 text-center text-amber-600 dark:text-amber-400">${r.S}</td><td class="px-4 py-3 text-center text-blue-600 dark:text-blue-400">${r.I}</td><td class="px-4 py-3 text-center text-rose-600 dark:text-rose-400">${r.A}</td><td class="px-4 py-3 text-center">${n}</td><td class="px-4 py-3 text-center font-bold">${n?Math.round(r.H/n*1000)/10:0}%</td></tr>`}).join(''):'<tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">Belum ada absensi untuk kategori dan bulan ini.</td></tr>';
+}
+
 async function loadAll(isInitial=false){
   await Promise.allSettled([loadSchedule(isInitial),loadSensus(isInitial),loadMusyawarah(isInitial)]);
   loadTodaySchedules();
@@ -8100,7 +8134,7 @@ function openDetail(){const m=document.getElementById('detailModal');if(!m)retur
 function closeDetail(){const m=document.getElementById('detailModal');if(!m)return;m.classList.remove('show')}
 function toggleFreeze(){const t=document.getElementById('sensusTable'),b=document.getElementById('freezeBtn');const on=t.classList.toggle('sticky-freeze');if(b){b.className=`px-3.5 py-2 ${on?'bg-emerald-950/70 border-emerald-600 text-emerald-300':'bg-slate-800 border-slate-700 text-slate-300'} hover:bg-slate-700 font-semibold text-xs rounded-xl border transition-all flex items-center gap-1.5`;b.innerHTML=`<i data-lucide="columns" class="w-4 h-4"></i><span>Freeze Kolom: ${on?'Aktif':'Nonaktif'}</span>`;lucide.createIcons()}showToast(on?'Fitur Freeze Kolom diaktifkan':'Fitur Freeze Kolom dinonaktifkan')}
 function openHelp(){document.getElementById('detailTitle').textContent='Pusat Bantuan';document.getElementById('detailBody').innerHTML='<div class="space-y-4 text-sm"><div><b>Sinkronisasi</b><p class="mt-1 text-slate-500">Data diperbarui otomatis dari sumber Samali.</p></div><div><b>Freeze</b><p class="mt-1 text-slate-500">Aktifkan Freeze di halaman Sensus agar kolom awal tetap terlihat saat tabel digeser ke kanan.</p></div><div><b>Pencarian</b><p class="mt-1 text-slate-500">Gunakan kotak pencarian untuk menyaring data tanpa mengubah data server.</p></div><div><b>Informasi</b><p class="mt-1 text-slate-500">Data tersinkron otomatis dari sumber Samali.</p></div></div>';openDetail()}
-function showPage(page){const allowed=['portal','jadwal','musyawarah','sensus'];if(!allowed.includes(page))page='portal';history.replaceState(null,'','#'+page);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page'+page.charAt(0).toUpperCase()+page.slice(1)).classList.add('active');document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('nav-active'));document.getElementById('nav'+page.charAt(0).toUpperCase()+page.slice(1))?.classList.add('nav-active');if(page==='jadwal')renderScheduleCalendar();if(page==='sensus'){renderSensus();renderAgeSummary();renderPortalSummary()}if(page==='musyawarah')renderMusyawarah();window.scrollTo({top:0,behavior:'smooth'})}
+function showPage(page){const allowed=['portal','jadwal','musyawarah','sensus','rekap'];if(!allowed.includes(page))page='portal';history.replaceState(null,'','#'+page);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page'+page.charAt(0).toUpperCase()+page.slice(1)).classList.add('active');document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('nav-active'));document.getElementById('nav'+page.charAt(0).toUpperCase()+page.slice(1))?.classList.add('nav-active');if(page==='jadwal')renderScheduleCalendar();if(page==='sensus'){renderSensus();renderAgeSummary();renderPortalSummary()}if(page==='musyawarah')renderMusyawarah();if(page==='rekap'){const el=document.getElementById('pengurusAttendanceMonth');if(el&&!el.value)el.value=currentPengurusMonth();loadPengurusAttendance();}window.scrollTo({top:0,behavior:'smooth'})}
 function toggleMobile(){document.getElementById('mobileMenu').classList.toggle('hidden')}
 function mobileNav(p){toggleMobile();showPage(p)}
 function toggleTheme(){const dark=document.documentElement.classList.toggle('dark');localStorage.setItem(themeKey,dark?'dark':'light');const b=document.getElementById('themeBtn');if(b){b.innerHTML=`<i data-lucide="${dark?'sun':'moon'}"></i>`;b.title=dark?'Beralih ke mode terang':'Beralih ke mode gelap';window.lucide?.createIcons();}}
@@ -8118,6 +8152,7 @@ document.addEventListener('DOMContentLoaded', function(){
   renderAgeSummary();
   renderPortalSummary();
   loadTodaySchedules();
+  const attendanceMonthInput=document.getElementById('pengurusAttendanceMonth');if(attendanceMonthInput)attendanceMonthInput.value=currentPengurusMonth();
   renderPortalOnlineTables();
   lucide.createIcons();
 
@@ -8133,6 +8168,7 @@ document.addEventListener('DOMContentLoaded', function(){
     .on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadSchedule(false))
     .on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensus(false))
     .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah(false))
+    .on('postgres_changes',{event:'*',schema:'public',table:'absensi_jamaah'},()=>{if(document.getElementById('pageRekap')?.classList.contains('active'))loadPengurusAttendance()})
     .subscribe();
 })();
 </script>

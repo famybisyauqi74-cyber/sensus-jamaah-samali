@@ -11540,37 +11540,60 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
             localStorage.setItem(attendanceStorageKey, JSON.stringify(attendanceRecords));
         }
 
+        let attendanceLoadError = '';
         async function syncAttendanceBatchToServer(records) {
+            // Kept as a compatibility shim: attendance is now stored in Supabase.
             try {
-                const result = await serverScheduleGet({ action:'saveAttendanceBatch', records: JSON.stringify(records || {}) }, 15000);
-                if (!result || result.status !== 'success') throw new Error(result?.message || 'Sinkronisasi absensi gagal.');
+                if (!window.samaliDb) throw new Error('Supabase belum siap.');
+                const rows = Object.entries(records || {}).map(([key, value]) => {
+                    const status = getAttendanceStatusCode(value);
+                    if (!status) return null;
+                    const category = getAttendanceRecordCategory(key), date = getAttendanceRecordDate(key), jamaahId = getAttendanceRecordJamaahId(key);
+                    const member = (mockJamaah || []).find(j => String(j.id) === String(jamaahId));
+                    if (!['umum','ibu'].includes(category) || !date || !jamaahId) return null;
+                    return { category, attendance_date: date, jamaah_id: String(jamaahId), jamaah_name: String(member?.nama || member?.name || jamaahId), status, attendance_time: '' };
+                }).filter(Boolean);
+                if (rows.length) {
+                    const { error } = await window.samaliDb.from('absensi_jamaah').upsert(rows, { onConflict: 'category,attendance_date,jamaah_id' });
+                    if (error) throw error;
+                }
                 return true;
-            } catch (error) {
-                console.warn('Sinkronisasi absensi ke server tertunda:', error);
-                return false;
-            }
+            } catch (error) { console.warn('Sinkronisasi absensi Supabase gagal:', error); return false; }
         }
 
         async function loadAttendanceRecordsFromServer() {
             try {
-                const result = await serverScheduleGet({ action:'getAttendance' }, 12000);
-                if (result && result.status === 'success' && result.data && typeof result.data === 'object') {
-                    const serverData = result.data;
-                    if (Object.keys(serverData).length) {
-                        attendanceRecords = serverData;
-                        saveAttendanceRecords();
-                    } else if (Object.keys(attendanceRecords).length) {
-                        syncAttendanceBatchToServer(attendanceRecords);
-                    }
-                    renderAbsenPage();
-                    renderRekapPage();
-                    renderDashboardOverdueAttendanceAlerts();
-                    renderDashboardOverdueAttendanceAlerts('attendanceOverdueAlerts');
-                    renderMissingBirthDateAlerts();
-                    return true;
+                if (!window.samaliDb) throw new Error('Koneksi Supabase belum siap.');
+                const allRows = [];
+                let from = 0, pageSize = 1000;
+                while (true) {
+                    const { data, error } = await window.samaliDb.from('absensi_jamaah')
+                        .select('category,attendance_date,jamaah_id,jamaah_name,status,attendance_time')
+                        .order('attendance_date', { ascending: true }).range(from, from + pageSize - 1);
+                    if (error) throw error;
+                    allRows.push(...(data || []));
+                    if (!data || data.length < pageSize) break;
+                    from += pageSize;
                 }
-            } catch (error) { console.warn('Absensi server belum dapat dimuat:', error); }
-            return false;
+                const serverData = {};
+                allRows.forEach(row => {
+                    const category = String(row.category || ''), date = String(row.attendance_date || '').slice(0,10), id = String(row.jamaah_id || '');
+                    const status = getAttendanceStatusCode(row.status);
+                    if (['umum','ibu'].includes(category) && date && id && status) serverData[attendanceKey(category, date, id)] = status;
+                });
+                attendanceRecords = serverData;
+                attendanceLoadError = '';
+                saveAttendanceRecords();
+                renderAbsenPage(); renderRekapPage();
+                renderDashboardOverdueAttendanceAlerts(); renderDashboardOverdueAttendanceAlerts('attendanceOverdueAlerts');
+                renderMissingBirthDateAlerts();
+                return true;
+            } catch (error) {
+                attendanceLoadError = error?.message || 'Gagal memuat absensi dari Supabase.';
+                console.error('Absensi Supabase belum dapat dimuat:', error);
+                renderRekapPage();
+                return false;
+            }
         }
 
         function saveAttendanceScheduleLinks() {
@@ -11700,7 +11723,7 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
             };
         }
 
-        function saveAttendanceSession() {
+        async function saveAttendanceSession() {
             if (!selectedAttendanceCategory) {
                 showToast('Jenis pengajian wajib dipilih terlebih dahulu.', 'error');
                 return;
@@ -11736,13 +11759,31 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
                 return;
             }
 
-            saveAttendanceRecords();
-            const serverAttendanceBatch = {};
-            members.forEach(jamaah => {
+            const db = window.samaliDb;
+            if (!db) { showToast('Supabase belum siap. Absensi belum disimpan.', 'error'); return; }
+            const rows = members.map(jamaah => {
                 const status = getPendingAttendanceStatus(jamaah.id);
-                if (status) serverAttendanceBatch[attendanceKey(selectedAttendanceCategory, selectedAttendanceDate, jamaah.id)] = status;
-            });
-            syncAttendanceBatchToServer(serverAttendanceBatch);
+                return status ? { category: selectedAttendanceCategory, attendance_date: selectedAttendanceDate, jamaah_id: String(jamaah.id), jamaah_name: String(jamaah.nama || jamaah.name || jamaah.id), status, attendance_time: selectedAttendanceTime } : null;
+            }).filter(Boolean);
+            try {
+                if (rows.length) {
+                    const { error } = await db.from('absensi_jamaah').upsert(rows, { onConflict: 'category,attendance_date,jamaah_id' });
+                    if (error) throw error;
+                }
+                const selectedIds = rows.map(r => r.jamaah_id);
+                let staleQuery = db.from('absensi_jamaah').delete().eq('category', selectedAttendanceCategory).eq('attendance_date', selectedAttendanceDate);
+                if (selectedIds.length) staleQuery = staleQuery.not('jamaah_id', 'in', `(${selectedIds.map(id => `\"${String(id).replace(/\"/g, '\\"')}\"`).join(',')})`);
+                const { error: staleError } = await staleQuery;
+                if (staleError) throw staleError;
+                attendanceRecords = Object.fromEntries(Object.entries(attendanceRecords).filter(([key]) => !(getAttendanceRecordCategory(key) === selectedAttendanceCategory && getAttendanceRecordDate(key) === selectedAttendanceDate)));
+                rows.forEach(row => { attendanceRecords[attendanceKey(row.category, row.attendance_date, row.jamaah_id)] = row.status; });
+                saveAttendanceRecords();
+            } catch (error) {
+                console.error('Gagal menyimpan absensi ke Supabase:', error);
+                showToast(`Absensi gagal disimpan ke Supabase: ${error?.message || 'Periksa tabel dan izin akses.'}`, 'error');
+                await loadAttendanceRecordsFromServer();
+                return;
+            }
 
             const event = buildAttendanceScheduleEvent(selectedAttendanceCategory, selectedAttendanceDate, selectedAttendanceTime, counts);
             const existingIndex = scheduleEvents.findIndex(item =>
@@ -12028,18 +12069,21 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
                 return date >= range.start && date <= range.end;
             });
             if (!keys.length) return showToast(`Tidak ada data absensi pada ${range.label}.`, 'error');
-            if (!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus ${keys.length} catatan absensi pada ${range.label}?`))) return;
-            keys.forEach(key => delete attendanceRecords[key]);
-            saveAttendanceRecords();
-            renderRekapPage();
-            showToast(`${keys.length} catatan absensi berhasil dihapus.`, 'success');
+            if (!(await samaliConfirmDelete(`Apakah Anda yakin ingin menghapus ${keys.length} catatan absensi pada ${range.label}? Penghapusan permanen di Supabase.`))) return;
+            try {
+                if (!window.samaliDb) throw new Error('Supabase belum siap.');
+                const { error } = await window.samaliDb.from('absensi_jamaah').delete().gte('attendance_date', range.start).lte('attendance_date', range.end);
+                if (error) throw error;
+                keys.forEach(key => delete attendanceRecords[key]); saveAttendanceRecords(); renderRekapPage();
+                showToast(`${keys.length} catatan absensi berhasil dihapus dari Supabase.`, 'success');
+            } catch (error) { showToast(`Penghapusan gagal: ${error?.message || 'periksa izin akses.'}`, 'error'); await loadAttendanceRecordsFromServer(); }
         }
 
         function setRekapCategoryFilter(category) { rekapCategoryFilter = category || 'all'; renderRekapPage(); }
         function setRekapPercentageCategory(category) { rekapPercentageCategory = category || 'all'; renderRekapPage(); }
 
-        let rekapRange = 'today';
-        let rekapReference = getDateKey(new Date());
+        let rekapRange = 'month';
+        let rekapReference = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
 
         function getHistoricalReferenceDate() {
             const d = new Date();
@@ -12049,55 +12093,25 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
         }
 
         function getRekapRange() {
-            const today = new Date(); today.setHours(0,0,0,0);
-            const fallbackKey = getDateKey(today);
-            const refText = String(rekapReference || fallbackKey);
-            if (rekapRange === 'today') {
-                const ref = new Date(`${refText}T00:00:00`);
-                const safe = Number.isNaN(ref.getTime()) || ref > today ? today : ref;
-                const key = getDateKey(safe);
-                return { start:key, end:key, label:`Tanggal ${key}` };
-            }
-            if (rekapRange === 'week') {
-                let ref = new Date(`${refText}T00:00:00`);
-                if (Number.isNaN(ref.getTime())) ref = yesterday;
-                if (ref > new Date()) ref = new Date();
-                const start = getStartOfWeek(ref), end = getEndOfWeek(ref);
-                return { start:getDateKey(start), end:getDateKey(end), label:`Pekan ${getDateKey(start)} s/d ${getDateKey(end)}` };
-            }
-            if (rekapRange === 'month') {
-                const parts = refText.split('-').map(Number);
-                let y = parts[0], m = (parts[1] || 1) - 1;
-                if (!y || !Number.isFinite(y) || !Number.isFinite(m)) { y=yesterday.getFullYear(); m=yesterday.getMonth(); }
-                const currentMonthStart = new Date(new Date().getFullYear(),new Date().getMonth(),1);
-                let refMonth = new Date(y,m,1);
-                if (refMonth > currentMonthStart) refMonth = currentMonthStart;
-                return { start:getDateKey(refMonth), end:getDateKey(new Date(refMonth.getFullYear(),refMonth.getMonth()+1,0)), label:`Bulan ${String(refMonth.getMonth()+1).padStart(2,'0')}/${refMonth.getFullYear()}` };
-            }
-            let year = Number(refText);
-            const currentYear = new Date().getFullYear();
-            if (!Number.isFinite(year) || year > currentYear) year = currentYear;
-            return { start:`${year}-01-01`, end:`${year}-12-31`, label:`Tahun ${year}` };
+            const now = new Date();
+            const raw = String(rekapReference || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`);
+            const match = raw.match(/^(\d{4})-(\d{2})/);
+            const year = match ? Number(match[1]) : now.getFullYear();
+            const month = match ? Math.min(12, Math.max(1, Number(match[2]))) : now.getMonth()+1;
+            const start = `${year}-${String(month).padStart(2,'0')}-01`;
+            const end = getDateKey(new Date(year, month, 0));
+            return { start, end, label: new Date(year, month-1, 1).toLocaleDateString('id-ID',{month:'long',year:'numeric'}) };
         }
 
         function setRekapRange(value) {
-            if (!['today','week','month','year'].includes(value)) return;
-            const now = new Date();
-            rekapRange = value;
-            if (value === 'year') rekapReference = String(now.getFullYear());
-            else if (value === 'month') rekapReference = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-            else if (value === 'week') { const d = getStartOfWeek(now); rekapReference = getDateKey(d); }
-            else rekapReference = getDateKey(now);
+            rekapRange = 'month';
+            rekapReference = String(value || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`).slice(0,7);
             renderRekapPage();
         }
 
         function setRekapReference(value) {
-            rekapReference = value || getDateKey(new Date());
-            const range = getRekapRange();
-            if (rekapRange === 'today') rekapReference = range.start;
-            else if (rekapRange === 'year') rekapReference = String(new Date(range.start).getFullYear());
-            else if (rekapRange === 'month') rekapReference = range.start.slice(0,7);
-            else if (rekapRange === 'week') rekapReference = range.start;
+            rekapRange = 'month';
+            rekapReference = String(value || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`).slice(0,7);
             renderRekapPage();
         }
 
@@ -12176,12 +12190,20 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
         async function deleteSavedAttendance(category, date) {
             const keys = Object.keys(attendanceRecords || {}).filter(key => getAttendanceRecordCategory(key) === category && getAttendanceRecordDate(key) === date);
             if (!keys.length) return showToast('Catatan absensi tidak ditemukan.', 'error');
-            if (!(await samaliConfirmDelete(`Hapus ${keys.length} catatan absensi ${category === 'ibu' ? 'Pengajian Ibu-Ibu' : 'Pengajian Umum'} tanggal ${date}?`))) return;
-            keys.forEach(key => delete attendanceRecords[key]);
-            saveAttendanceRecords();
-            const synced = await syncAttendanceBatchToServer(attendanceRecords);
-            renderRekapPage();
-            showToast(synced ? 'Catatan dihapus. Sinkronisasi server telah dikirim.' : 'Catatan dihapus dari perangkat; sinkronisasi server belum berhasil.', synced ? 'success' : 'error');
+            if (!(await samaliConfirmDelete(`Hapus ${keys.length} catatan absensi ${category === 'ibu' ? 'Pengajian Ibu-Ibu' : 'Pengajian Umum'} tanggal ${date}? Penghapusan akan permanen di Supabase.`))) return;
+            try {
+                if (!window.samaliDb) throw new Error('Supabase belum siap.');
+                const { error } = await window.samaliDb.from('absensi_jamaah').delete().eq('category', category).eq('attendance_date', date);
+                if (error) throw error;
+                keys.forEach(key => delete attendanceRecords[key]);
+                saveAttendanceRecords();
+                renderRekapPage(); renderDashboardOverdueAttendanceAlerts();
+                showToast('Rekap absensi berhasil dihapus dari Supabase.', 'success');
+            } catch (error) {
+                console.error('Penghapusan absensi Supabase gagal:', error);
+                showToast(`Tidak bisa menghapus di Supabase: ${error?.message || 'periksa hak akses admin.'}`, 'error');
+                await loadAttendanceRecordsFromServer();
+            }
         }
 
         function renderRekapPage() {
@@ -12190,17 +12212,18 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
             const range = getRekapRange();
             const umum = getAttendanceSummary('umum', range);
             const ibu = getAttendanceSummary('ibu', range);
-            const refType = rekapRange === 'year' ? 'number' : rekapRange === 'month' ? 'month' : 'date';
+            const refType = 'month';
             mainArea.innerHTML = `
                 <div class="max-w-7xl mx-auto w-full px-1 sm:px-4 pb-8">
                     <div class="mb-6"><div class="flex items-center gap-2 mb-2"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i data-lucide="chart-no-axes-column" class="w-3.5 h-3.5"></i>Rekap Pengajian</span></div><h3 class="text-2xl font-bold text-white tracking-tight">Rekap Pengajian</h3><p class="text-sm text-slate-400 mt-1">Rekap hanya untuk Pengajian Umum dan Pengajian Ibu-Ibu.</p></div>
-                    <div class="samali-rekap-period bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="samali-rekap-period-copy"><p class="text-xs font-bold text-white">Periode Rekap</p><p class="text-[11px] text-slate-500 mt-1">Pilih tanggal atau periode yang ingin diperiksa, termasuk hari ini. Rekap mengikuti data absen yang sudah tersimpan.</p></div><div class="samali-rekap-period-controls flex flex-wrap gap-2"><select onchange="setRekapRange(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"><option value="today" ${rekapRange==='today'?'selected':''}>Sehari</option><option value="week" ${rekapRange==='week'?'selected':''}>Seminggu</option><option value="month" ${rekapRange==='month'?'selected':''}>Sebulan</option><option value="year" ${rekapRange==='year'?'selected':''}>Setahun</option></select><input type="${refType}" value="${escapeHtml(rekapReference)}" ${refType === 'date' ? `max="${getDateKey(new Date())}"` : ''} onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div></div>
+                    <div class="samali-rekap-period bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6"><div class="samali-rekap-period-copy"><p class="text-xs font-bold text-white">Rekap Bulanan</p><p class="text-[11px] text-slate-500 mt-1">Data dihitung berdasarkan seluruh absensi pada bulan yang dipilih dan tersimpan di Supabase.</p></div><div class="samali-rekap-period-controls flex flex-wrap gap-2"><input aria-label="Pilih bulan rekap" type="month" value="${escapeHtml(rekapReference)}" onchange="setRekapReference(this.value)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"></div></div>
+                    ${attendanceLoadError ? `<div class="rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-200 px-4 py-3 mb-5 text-xs">Data absensi belum tersambung ke Supabase. Pastikan tabel <b>absensi_jamaah</b> sudah dibuat dan akun memiliki izin. Detail: ${escapeHtml(attendanceLoadError)}</div>` : ''}
                     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-5 shadow-xl">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4"><div><h4 class="text-lg font-bold text-white">Kelola Absen Tersimpan</h4><p class="text-xs text-slate-400 mt-1">Pilih Edit untuk mengubah status absen, atau Hapus untuk menghapus satu rekap berdasarkan kategori dan tanggal.</p></div><span class="text-xs text-slate-400">${getSavedAttendanceSessions().length} sesi tersimpan</span></div>
                         <div class="space-y-2">${getSavedAttendanceSessions().length ? getSavedAttendanceSessions().map(session => `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-slate-950/70 border border-slate-800 p-3"><div><div class="text-sm font-semibold text-white">${session.category === 'ibu' ? 'Pengajian Ibu-Ibu' : 'Pengajian Umum'}</div><div class="text-xs text-slate-400 mt-1">${escapeHtml(session.date)} · ${session.count} catatan · H ${session.H} / S ${session.S} / I ${session.I} / A ${session.A}</div></div><div class="flex gap-2"><button type="button" onclick="editSavedAttendance('${session.category}','${session.date}')" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Edit</button><button type="button" onclick="deleteSavedAttendance('${session.category}','${session.date}')" class="px-3 py-2 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-semibold">Hapus</button></div></div>`).join('') : `<div class="rounded-xl border border-dashed border-slate-700 p-5 text-center text-sm text-slate-500">Belum ada rekap absen tersimpan.</div>`}</div>
                     </section>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        ${[['umum','Pengajian Umum',umum],['ibu','Pengajian Ibu-Ibu',ibu]].map(([cat,label,summary])=>`<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl"><div class="flex items-start justify-between gap-3"><div><h4 class="text-lg font-bold text-white">${label}</h4><p class="text-[11px] text-slate-500 mt-1">${cat==='umum'?'Usia Mandiri dan Lansia.':'Semua perempuan yang Usia Mandiri dan Lansia.'}</p></div><div class="text-right"><div class="text-3xl font-extrabold text-emerald-400">${summary.percentage}%</div><div class="text-[10px] text-slate-500">persentase hadir</div></div></div><div class="grid grid-cols-4 gap-2 mt-5"><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-emerald-400">${summary.H}</div><div class="text-[9px] text-slate-500">Hadir</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-amber-400">${summary.S}</div><div class="text-[9px] text-slate-500">Sakit</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-blue-400">${summary.I}</div><div class="text-[9px] text-slate-500">Izin</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-rose-400">${summary.A}</div><div class="text-[9px] text-slate-500">Alpa</div></div></div><div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-800"><span class="text-[11px] text-slate-500">${summary.total} catatan kehadiran · ${range.label}</span><button type="button" onclick="openRekapDetail('${cat}')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2"><i data-lucide="list" class="w-4 h-4"></i>Detail</button></div></div>`).join('')}
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        ${[['all','Gabungan Semua Kategori',getAttendanceSummary('all',range)],['umum','Pengajian Umum',umum],['ibu','Pengajian Ibu-Ibu',ibu]].map(([cat,label,summary])=>`<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl"><div class="flex items-start justify-between gap-3"><div><h4 class="text-lg font-bold text-white">${label}</h4><p class="text-[11px] text-slate-500 mt-1">${cat==='all'?'Gabungan seluruh kategori pengajian.':cat==='umum'?'Usia Mandiri dan Lansia.':'Semua perempuan yang Usia Mandiri dan Lansia.'}</p></div><div class="text-right"><div class="text-3xl font-extrabold text-emerald-400">${summary.percentage}%</div><div class="text-[10px] text-slate-500">persentase hadir</div></div></div><div class="grid grid-cols-4 gap-2 mt-5"><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-emerald-400">${summary.H}</div><div class="text-[9px] text-slate-500">Hadir</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-amber-400">${summary.S}</div><div class="text-[9px] text-slate-500">Sakit</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-blue-400">${summary.I}</div><div class="text-[9px] text-slate-500">Izin</div></div><div class="rounded-xl bg-slate-950 border border-slate-800 p-3 text-center"><div class="text-lg font-bold text-rose-400">${summary.A}</div><div class="text-[9px] text-slate-500">Alpa</div></div></div><div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-800"><span class="text-[11px] text-slate-500">${summary.total} catatan kehadiran · ${range.label}</span><button type="button" onclick="openRekapDetail('${cat}')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2"><i data-lucide="list" class="w-4 h-4"></i>Detail</button></div></div>`).join('')}
                     </div>
                 </div>`;
             lucide.createIcons();
@@ -13016,7 +13039,7 @@ body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, bo
 
 <script id="samali-supabase-realtime">
 (function(){setTimeout(()=>{const db=window.samaliDb;if(!db)return;db.channel('samali-live').on('postgres_changes',{event:'*',schema:'public',table:'kegiatan'},()=>loadScheduleEventsFromServer?.()).on('postgres_changes',{event:'*',schema:'public',table:'sensus_jamaah'},()=>loadSensusJamaahFromServer?.(true))
-    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah?.()).subscribe();},1000);})();
+    .on('postgres_changes',{event:'*',schema:'public',table:'hasil_musyawarah'},()=>loadMusyawarah?.()).on('postgres_changes',{event:'*',schema:'public',table:'absensi_jamaah'},()=>loadAttendanceRecordsFromServer?.()).subscribe();},1000);})();
 </script>
 
 <script id="samali-login-bfcache-guard">
