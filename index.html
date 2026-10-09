@@ -11763,28 +11763,15 @@ body.theme-light .sticky-freeze tbody td.sticky-col-4 {
                 return;
             }
 
+            // Status yang tidak dipilih otomatis dicatat sebagai Alpa (A).
             let counts = { A: 0, S: 0, I: 0, H: 0 };
-            let savedCount = 0;
-
-            members.forEach(jamaah => {
-                const status = getPendingAttendanceStatus(jamaah.id);
-                if (!status) return;
-                attendanceRecords[attendanceKey(selectedAttendanceCategory, selectedAttendanceDate, jamaah.id)] = status;
-                counts[status]++;
-                savedCount++;
-            });
-
-            if (!savedCount) {
-                showToast('Pilih status ASIH minimal untuk satu jamaah sebelum menyimpan.', 'error');
-                return;
-            }
-
             const db = window.samaliDb;
             if (!db) { showToast('Supabase belum siap. Absensi belum disimpan.', 'error'); return; }
             const rows = members.map(jamaah => {
-                const status = getPendingAttendanceStatus(jamaah.id);
-                return status ? { category: selectedAttendanceCategory, attendance_date: selectedAttendanceDate, jamaah_id: String(jamaah.id), jamaah_name: String(jamaah.nama || jamaah.name || jamaah.id), status, attendance_time: selectedAttendanceTime } : null;
-            }).filter(Boolean);
+                const status = getPendingAttendanceStatus(jamaah.id) || 'A';
+                counts[status]++;
+                return { category: selectedAttendanceCategory, attendance_date: selectedAttendanceDate, jamaah_id: String(jamaah.id), jamaah_name: String(jamaah.nama || jamaah.name || jamaah.id), status, attendance_time: selectedAttendanceTime };
+            });
             try {
                 if (rows.length) {
                     const { error } = await db.from('absensi_jamaah').upsert(rows, { onConflict: 'category,attendance_date,jamaah_id' });
@@ -11806,25 +11793,28 @@ body.theme-light .sticky-freeze tbody td.sticky-col-4 {
             }
 
             const event = buildAttendanceScheduleEvent(selectedAttendanceCategory, selectedAttendanceDate, selectedAttendanceTime, counts);
-            const existingIndex = scheduleEvents.findIndex(item =>
-                item.type === 'attendance' &&
-                item.attendanceCategory === selectedAttendanceCategory &&
-                item.attendanceDate === selectedAttendanceDate &&
-                item.attendanceTime === selectedAttendanceTime
-            );
-
-            if (existingIndex >= 0) {
-                scheduleEvents[existingIndex] = {
-                    ...scheduleEvents[existingIndex],
-                    ...event,
-                    id: scheduleEvents[existingIndex].id
-                };
-            } else {
-                scheduleEvents.push(event);
+            // Simpan jadwal yang dibuat lewat halaman Absen ke tabel jadwal bersama,
+            // agar langsung muncul di index, pengurus, dan jamaah (termasuk tanggal lampau).
+            try {
+                const db = window.samaliDb;
+                const row = { title: event.title, date: event.date, time: event.time, detail: event.detail };
+                const { data: matches, error: findError } = await db.from('kegiatan')
+                    .select('id').eq('title', row.title).eq('date', row.date).eq('time', row.time).limit(1);
+                if (findError) throw findError;
+                if (matches && matches.length) {
+                    const { error } = await db.from('kegiatan').update(row).eq('id', matches[0].id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await db.from('kegiatan').insert(row);
+                    if (error) throw error;
+                }
+                await loadScheduleEventsFromServer();
+            } catch (scheduleError) {
+                console.error('Jadwal dari absensi gagal disimpan:', scheduleError);
+                showToast(`Absensi tersimpan, tetapi jadwal belum tersimpan: ${scheduleError?.message || 'periksa izin tabel kegiatan.'}`, 'error');
             }
-            saveScheduleEvents();
 
-            attendanceScheduleLinks = attendanceScheduleLinks.filter(item => item.id !== event.id);
+            attendanceScheduleLinks = attendanceScheduleLinks.filter(item => !(item.category === selectedAttendanceCategory && item.date === selectedAttendanceDate && item.time === selectedAttendanceTime));
             attendanceScheduleLinks.push({
                 id: event.id,
                 category: selectedAttendanceCategory,
