@@ -7841,7 +7841,7 @@ body.theme-light button[onclick*="openHelp"]:hover, body.theme-light button[oncl
 <script>
 const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';
-window.samaliDb=window.samaliDb||window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false}});
+window.samaliDb=window.samaliDb||window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const API='https://script.google.com/macros/s/AKfycbz9SpyhY97lSvwFlkk4Hk_5cs1M6FF_AaiJXQjV0RHAF-Lz7dpvE5OI6xinpS5f4FPm/exec';
 let scheduleEvents=[],musyawarahItems=[],sensusItems=[];
 let pengurusScheduleFingerprint='', pengurusSensusFingerprint='', pengurusMusyawarahFingerprint='';
