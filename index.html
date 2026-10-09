@@ -9702,6 +9702,34 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
         // Sinkronisasi Sensus Jamaah dari sumber data
         // Data dari server menjadi sumber utama. Data contoh tetap dipertahankan sebagai fallback
         // jika server belum dapat diakses, sehingga fitur lain tidak ikut rusak.
+        async function migrateLegacySensusToSupabase(){
+            try{
+                if(!window.samaliDb) return false;
+                const legacy=await serverJsonpGet({action:'getSensus'},15000);
+                if(!legacy || legacy.status!=='success' || !Array.isArray(legacy.data) || !legacy.data.length) return false;
+                const rows=legacy.data.map((x,i)=>({
+                    'No. Keluarga':String(x.noKeluarga??x.no_keluarga??x.no_kk??x['No. Keluarga']??'').trim(),
+                    'NO. JAMAAH':String(x.noJamaah??x.no_jamaah??x.no??x['NO. JAMAAH']??i+1).trim(),
+                    'KODE KELG.':String(x.kode_kk??x.kodeKelg??x.kode_kelg??x['KODE KELG.']??'').trim(),
+                    'PREF':String(x.gelar??x.pref??x.PREF??'').trim(),
+                    'NAMA':String(x.nama??x.NAMA??'').trim(),
+                    'L/P':String(x.lp??x['L/P']??'').trim().toUpperCase(),
+                    'TEMPAT LAHIR':String(x.tempatLahir??x.tempat_lahir??x['TEMPAT LAHIR']??'').trim(),
+                    'TGL LAHIR':String(x.tanggalLahir??x.tgl_lahir??x['TGL LAHIR']??'').trim(),
+                    'UMUR':String(x.umur??x.UMUR??0),
+                    'B/K/J/D':String(x.statusHubungan??x.statusBk??x.status_bk??x['B/K/J/D']??'').trim().toUpperCase(),
+                    'STATUS':String(x.status??x.STATUS??'').trim(),
+                    'ALAMAT RUMAH':String(x.alamat??x.alamatRumah??x['ALAMAT RUMAH']??'').trim(),
+                    'TELEPON':String(x.telepon??x.TELEPON??'').trim(),
+                    'KET':String(x.keterangan??x.ket??x.KET??'').trim()
+                })).filter(x=>x.nama);
+                if(!rows.length) return false;
+                const {error}=await window.samaliDb.from('sensus_jamaah').insert(rows);
+                if(error) throw error;
+                return true;
+            }catch(e){ console.warn('Migrasi Sensus lama ke Supabase gagal:',e); return false; }
+        }
+
         async function loadSensusJamaahFromServer(forceRefresh = false) {
             if (sensusDataPromise && !forceRefresh) return sensusDataPromise;
             sensusDataPromise = (async () => {
@@ -9711,7 +9739,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                     ({ data, error } = await window.samaliDb
                         .from('sensus_jamaah')
                         .select('*')
-                        .order('no', { ascending: true })
+                        .order('NO. JAMAAH', { ascending: true })
                         .order('id', { ascending: true }));
                     if (error) {
                         console.warn('Query Sensus dengan order gagal, mencoba query dasar:', error);
@@ -9719,20 +9747,32 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                     }
                     if (error) throw error;
 
+                    if(!(data||[]).length){
+                        const migrated=await migrateLegacySensusToSupabase();
+                        if(migrated){
+                            ({ data, error } = await window.samaliDb.from('sensus_jamaah').select('*').order('NO. JAMAAH',{ascending:true}).order('id',{ascending:true}));
+                            if(error){ ({ data, error } = await window.samaliDb.from('sensus_jamaah').select('*')); }
+                            if(error) throw error;
+                        }
+                    }
+
                     const serverData = (data || []).map((row, index) => ({
                         id: String(row.id ?? index + 1),
-                        no: Number(row.no ?? index + 1) || index + 1,
-                        kodeKelg: String(row.kode_kelg ?? '').trim(),
-                        pref: String(row.pref ?? '').trim(),
-                        nama: String(row.nama ?? '').trim(),
-                        lp: String(row.lp ?? '').trim().toUpperCase(),
-                        ttl: String(row.ttl ?? '').trim(),
-                        umur: Number(row.umur ?? 0) || 0,
-                        statusBk: String(row.status_bk ?? '').trim().toUpperCase(),
-                        status: String(row.status ?? '').trim(),
-                        alamat: String(row.alamat ?? '').trim(),
-                        telepon: String(row.telepon ?? '').trim(),
-                        ket: String(row.ket ?? '').trim()
+                        noKeluarga: String(row['No. Keluarga'] ?? '').trim(),
+                        no: Number(row['NO. JAMAAH'] ?? index + 1) || index + 1,
+                        kodeKelg: String(row['KODE KELG.'] ?? '').trim(),
+                        pref: String(row['PREF'] ?? '').trim(),
+                        nama: String(row['NAMA'] ?? '').trim(),
+                        lp: String(row['L/P'] ?? '').trim().toUpperCase(),
+                        tempatLahir: String(row['TEMPAT LAHIR'] ?? '').trim(),
+                        tanggalLahir: String(row['TGL LAHIR'] ?? '').trim(),
+                        ttl: [String(row['TEMPAT LAHIR'] ?? '').trim(), String(row['TGL LAHIR'] ?? '').trim()].filter(Boolean).join(', '),
+                        umur: Number(row['UMUR'] ?? 0) || 0,
+                        statusBk: String(row['B/K/J/D'] ?? '').trim().toUpperCase(),
+                        status: String(row['STATUS'] ?? '').trim(),
+                        alamat: String(row['ALAMAT RUMAH'] ?? '').trim(),
+                        telepon: String(row['TELEPON'] ?? '').trim(),
+                        ket: String(row['KET'] ?? '').trim()
                     }));
 
                     mockJamaah = serverData;
@@ -9763,7 +9803,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
                 if(Number(j.umur)===age) return;
                 j.umur=age;
                 sendMutationInBackground({
-                    action:'updateSensus', no:String(j.no), kode_kk:j.kodeKelg||'', gelar:j.pref||'', nama:j.nama||'', lp:j.lp||'', ttl:j.ttl||'', umur:String(age),
+                    action:'updateSensus', id:String(j.id), no:String(j.no), kode_kk:j.kodeKelg||'', gelar:j.pref||'', nama:j.nama||'', lp:j.lp||'', ttl:j.ttl||'', umur:String(age),
                     statusHubungan:j.statusBk||'', status:j.status||'', alamat:j.alamat||'', telepon:j.telepon||'', keterangan:j.ket||''
                 }, result => { if(!result || result.status!=='success') console.warn('Sinkronisasi umur otomatis:', result); });
             });
@@ -9785,47 +9825,56 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
         // Hitung ulang usia berdasarkan tanggal lahir saat data pertama kali dimuat.
         refreshAllCalculatedAges();
 
-        // Login sekarang sepenuhnya menggunakan Supabase Auth.
+        // Login utama memakai Supabase Auth. Jika akun lama masih berada di Spreadsheet,
+        // verifikasi sekali lewat Apps Script lalu buatkan akun Supabase Auth otomatis.
+        async function serverLoginGet(email, password, timeoutMs = 15000) {
+            return new Promise((resolve, reject) => {
+                const callbackName = `samaliLoginJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                const script = document.createElement('script');
+                const qs = new URLSearchParams({action:'loginUser',email:String(email||''),password:String(password||''),callback:callbackName,_:String(Date.now())});
+                let settled=false;
+                const cleanup=()=>{settled=true;try{delete window[callbackName]}catch(e){}script.remove();clearTimeout(timer)};
+                const timer=setTimeout(()=>{if(!settled){cleanup();reject(new Error('Login lama tidak dapat dihubungi.'))}},timeoutMs);
+                window[callbackName]=result=>{if(!settled){cleanup();resolve(result)}};
+                script.onerror=()=>{if(!settled){cleanup();reject(new Error('Login lama tidak dapat dihubungi.'))}};
+                script.src=`${PROFILE_API}?${qs.toString()}`;script.async=true;document.head.appendChild(script);
+            });
+        }
 
-        // Login Handler
         async function handleDirectLogin() {
-            const emailInput = document.getElementById('userEmailInput').value.trim();
-            const passwordInput = document.getElementById('userPasswordInput').value;
-            const btnLogin = document.getElementById('btnLogin');
-
-            if (!emailInput) {
-                showAlertBox('Masukkan username atau email Anda.', 'error');
-                return;
-            }
-            if (!passwordInput) {
-                showAlertBox('Masukkan kata sandi Anda.', 'error');
-                return;
-            }
-
-            hideAlertBox();
-            btnLogin.disabled = true;
-            btnLogin.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Memeriksa...</span>`;
-            lucide.createIcons();
-
-            try {
-                if (!window.samaliDb?.auth) throw new Error('Layanan login belum siap.');
-                const {data,error}=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
-                if(error) throw new Error(error.message || 'Email atau kata sandi tidak cocok.');
-                const user=data?.user;
-                if(!user) throw new Error('Akun tidak ditemukan.');
-                const meta=user.user_metadata||{};
+            const emailInput=document.getElementById('userEmailInput').value.trim();
+            const passwordInput=document.getElementById('userPasswordInput').value;
+            const btnLogin=document.getElementById('btnLogin');
+            if(!emailInput){showAlertBox('Masukkan username atau email Anda.','error');return}
+            if(!passwordInput){showAlertBox('Masukkan kata sandi Anda.','error');return}
+            hideAlertBox();btnLogin.disabled=true;btnLogin.innerHTML=`<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Memeriksa...</span>`;lucide.createIcons();
+            try{
+                let authUser=null;
+                let {data,error}=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
+                if(!error){authUser=data?.user||null}
+                if(!authUser){
+                    let legacy=null;
+                    try{legacy=await serverLoginGet(emailInput,passwordInput,12000)}catch(e){legacy=null}
+                    if(!legacy || legacy.status!=='success') throw new Error(error?.message==='Invalid login credentials' ? 'Email atau kata sandi belum terdaftar di Supabase Auth.' : (legacy?.message||error?.message||'Email atau kata sandi tidak cocok.'));
+                    const fullName=String(legacy.nama||'').trim()||emailInput.split('@')[0];
+                    const accountStatus=String(legacy.statusAkun||legacy.accountStatus||legacy.role||legacy.jabatan||legacy.userStatus||'').trim();
+                    const sign=await window.samaliDb.auth.signUp({email:emailInput,password:passwordInput,options:{data:{full_name:fullName,nama:fullName,statusAkun:accountStatus,legacy_migrated:true}}});
+                    if(sign.error && !/already registered|already exists/i.test(sign.error.message||'')) throw sign.error;
+                    if(sign.data?.user && sign.data?.session){authUser=sign.data.user}
+                    else {
+                        const retry=await window.samaliDb.auth.signInWithPassword({email:emailInput,password:passwordInput});
+                        if(retry.error) throw new Error('Akun lama berhasil ditemukan, tetapi Supabase meminta verifikasi email. Matikan Email Confirmation di Supabase Auth atau konfirmasi email akun tersebut.');
+                        authUser=retry.data?.user||null;
+                    }
+                    if(!authUser) throw new Error('Akun Supabase belum siap.');
+                }
+                const meta=authUser.user_metadata||{};
                 const fullName=String(meta.full_name||meta.nama||meta.name||emailInput.split('@')[0]).trim();
                 const accountStatus=String(meta.statusAkun||meta.accountStatus||meta.role||meta.jabatan||'').trim();
                 await appLoginSuccess(emailInput,fullName,accountStatus);
-                showToast(`Selamat datang, ${fullName}.`, 'success');
-            } catch (error) {
-                console.error('Login gagal:', error);
-                showAlertBox(error && error.message ? error.message : 'Email atau kata sandi tidak cocok. Periksa akun Supabase Auth Anda.', 'error');
-            } finally {
-                btnLogin.disabled = false;
-                btnLogin.innerHTML = `<span>Masuk</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>`;
-                lucide.createIcons();
-            }
+                showToast(`Selamat datang, ${fullName}.`,'success');
+            }catch(error){console.error('Login gagal:',error);showAlertBox(error?.message||'Email atau kata sandi tidak cocok.','error')}
+            finally{btnLogin.disabled=false;btnLogin.innerHTML=`<span>Masuk</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>`;lucide.createIcons()}
         }
 
         function showAlertBox(message, type) {
@@ -10681,7 +10730,49 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
             }
         }
 
-        function sendMutationInBackground(payload,onResult){const action=String(payload?.action||'');const run=async()=>{try{if(window.samaliDb&&['tambahSensus','updateSensus','hapusSensus'].includes(action)){if(action==='tambahSensus'){const row={no:Number(payload.no)||0,kode_kelg:String(payload.kode_kk||''),pref:String(payload.gelar||''),nama:String(payload.nama||''),lp:String(payload.lp||''),ttl:String(payload.ttl||''),umur:Number(payload.umur)||0,status_bk:String(payload.statusHubungan||''),status:String(payload.status||''),alamat:String(payload.alamat||''),telepon:String(payload.telepon||''),ket:String(payload.keterangan||'')};const q=await window.samaliDb.from('sensus_jamaah').insert(row);if(q.error)throw q.error;}else if(action==='updateSensus'){const row={kode_kelg:String(payload.kode_kk||''),pref:String(payload.gelar||''),nama:String(payload.nama||''),lp:String(payload.lp||''),ttl:String(payload.ttl||''),umur:Number(payload.umur)||0,status_bk:String(payload.statusHubungan||''),status:String(payload.status||''),alamat:String(payload.alamat||''),telepon:String(payload.telepon||''),ket:String(payload.keterangan||'')};const q=await window.samaliDb.from('sensus_jamaah').update(row).eq('id',Number(payload.id));if(q.error)throw q.error;}else{const q=await window.samaliDb.from('sensus_jamaah').delete().eq('id',Number(payload.id));if(q.error)throw q.error;}if(typeof onResult==='function')onResult({status:'success'});return;}const result=await serverJsonpGet(payload,8000);if(typeof onResult==='function')onResult(result);}catch(e){if(typeof onResult==='function')onResult({status:'error',message:e.message});}};run();}
+        function sendMutationInBackground(payload,onResult){
+            const action=String(payload?.action||'');
+            const run=async()=>{
+                try{
+                    if(window.samaliDb&&['tambahSensus','updateSensus','hapusSensus'].includes(action)){
+                        if(action==='hapusSensus'){
+                            const q=await window.samaliDb.from('sensus_jamaah').delete().eq('id',String(payload.id));
+                            if(q.error)throw q.error;
+                        } else {
+                            const birth=splitBirthPlaceDate(payload.ttl||'');
+                            const row={
+                                'NO. JAMAAH':Number(payload.no)||0,
+                                'KODE KELG.':String(payload.kode_kk||''),
+                                'PREF':String(payload.gelar||''),
+                                'NAMA':String(payload.nama||''),
+                                'L/P':String(payload.lp||''),
+                                'TEMPAT LAHIR':String(birth.place||''),
+                                'TGL LAHIR':String(birth.date||''),
+                                'UMUR':Number(payload.umur)||0,
+                                'B/K/J/D':String(payload.statusHubungan||''),
+                                'STATUS':String(payload.status||''),
+                                'ALAMAT RUMAH':String(payload.alamat||''),
+                                'TELEPON':String(payload.telepon||''),
+                                'KET':String(payload.keterangan||'')
+                            };
+                            if(action==='tambahSensus') row['No. Keluarga']=String(payload.noKeluarga||'');
+                            const q=action==='tambahSensus'
+                                ? await window.samaliDb.from('sensus_jamaah').insert(row)
+                                : await window.samaliDb.from('sensus_jamaah').update(row).eq('id',String(payload.id));
+                            if(q.error)throw q.error;
+                        }
+                        if(typeof onResult==='function')onResult({status:'success'});
+                        return;
+                    }
+                    const result=await serverJsonpGet(payload,8000);
+                    if(typeof onResult==='function')onResult(result);
+                }catch(e){
+                    console.error('Perubahan Sensus gagal disimpan:',e);
+                    if(typeof onResult==='function')onResult({status:'error',message:e.message});
+                }
+            };
+            run();
+        }
 
         async function verifySensusMutation(noJamaah, expected, shouldExist = true) {
             try {
@@ -10741,7 +10832,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
             const no = existing ? Number(existing.no || 0) : 0;
             if (editId !== null && (!no || no < 1)) { showToast('Nomor Jamaah tidak valid.', 'error'); return; }
 
-            const payload = { action: editId !== null ? 'updateSensus' : 'tambahSensus', id: editId !== null ? String(editId) : '', no, kode_kk:kodeKelg, gelar:pref, nama, lp, ttl, umur, statusHubungan:statusBk, status, alamat, telepon, keterangan:ket };
+            const payload = { action: editId !== null ? 'updateSensus' : 'tambahSensus', id: editId !== null ? String(editId) : '', no: editId !== null ? no : (mockJamaah.reduce((m,w) => Math.max(m, Number(w.no)||0), 0) + 1), kode_kk:kodeKelg, gelar:pref, nama, lp, ttl, umur, statusHubungan:statusBk, status, alamat, telepon, keterangan:ket };
             const finalNo = editId !== null ? no : (mockJamaah.reduce((m,w) => Math.max(m, Number(w.no)||0), 0) + 1);
             sensusMutationVersion += 1;
             sensusLastMutationAt = Date.now();
@@ -10753,7 +10844,7 @@ html:not(.dark) .dashboard-detail-stat-card select{background:#ffffff!important;
             }
             refreshAllCalculatedAges(); updateTableBodyOnly(); updateAgeCategoryCards(); updateDashboardSensusCount(); updateSensusPageLoadingState();
             closeFullScreenModal();
-            showToast(editId !== null ? 'Data Sensus Jamaah berhasil diperbarui. Perubahan sedang diproses.' : 'Jamaah baru berhasil ditambahkan. Perubahan sedang diproses.', 'success');
+            showToast(editId !== null ? 'Data jamaah diperbarui. Menyimpan perubahan…' : 'Jamaah ditambahkan. Menyimpan data…', 'success');
 
             sendMutationInBackground(payload, result => {
                 if (!result || result.status !== 'success') console.warn('Server simpan Sensus mengembalikan:', result);
