@@ -8980,6 +8980,26 @@ body.theme-light .nav-item:hover svg {color:#334155!important}
 body.theme-light input[type="date"]::-webkit-calendar-picker-indicator, body.theme-light input[type="month"]::-webkit-calendar-picker-indicator {filter:none!important;opacity:1!important;cursor:pointer}
 body:not(.theme-light) input[type="date"]::-webkit-calendar-picker-indicator, body:not(.theme-light) input[type="month"]::-webkit-calendar-picker-indicator {filter:invert(1)!important;opacity:1!important;cursor:pointer}
 </style>
+<style id="samali-light-mode-frozen-header-fix">
+/* Mode terang: kepala empat kolom beku harus punya latar dan teks yang kontras. */
+body.theme-light .sticky-freeze thead th.sticky-col-1,
+body.theme-light .sticky-freeze thead th.sticky-col-2,
+body.theme-light .sticky-freeze thead th.sticky-col-3,
+body.theme-light .sticky-freeze thead th.sticky-col-4 {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+body.theme-light .sticky-freeze tbody td.sticky-col-1,
+body.theme-light .sticky-freeze tbody td.sticky-col-2,
+body.theme-light .sticky-freeze tbody td.sticky-col-3,
+body.theme-light .sticky-freeze tbody td.sticky-col-4 {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+</style>
 </head>
 <script id="samali-supabase-bootstrap">
 (function(){const SUPABASE_URL='https://eopktyqzztmmvimyedmh.supabase.co';const SUPABASE_ANON_KEY='sb_publishable_DL6heiCD6QCbPs93FJVK2w_QUC_w0SR';if(window.supabase?.createClient&&!window.samaliDb)window.samaliDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});})();
