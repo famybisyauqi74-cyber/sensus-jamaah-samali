@@ -7,7 +7,7 @@
 <title>Portal Samali</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
-<link rel="manifest" href="manifest.json">
+
 <style>
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -7877,6 +7877,15 @@ async function loadSchedule(isInitial=false){
 }
 
 function splitBirthPlaceDate(ttl){const raw=String(ttl||'').trim();if(!raw)return {place:'',date:''};const m=raw.match(/^(.*?)[,;\-–—]\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s*$/);if(m)return {place:m[1].trim().replace(/[\s,;]+$/,''),date:m[2].trim()};const d=raw.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);return d?{place:raw.slice(0,d.index).replace(/[\s,;–—-]+$/,'').trim(),date:d[0]}:{place:raw,date:''};}
+function ageFromTtl(ttl){
+  const raw=String(ttl??'').trim(); if(!raw)return null;
+  const part=splitBirthPlaceDate(raw).date||raw;
+  let y=0,m=0,d=0,match=part.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if(match){y=+match[1];m=+match[2];d=+match[3];}
+  else {match=part.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);if(!match)return null;d=+match[1];m=+match[2];y=+match[3];}
+  const birth=new Date(y,m-1,d); if(!y||!m||!d||birth.getFullYear()!==y||birth.getMonth()!==m-1||birth.getDate()!==d||birth>new Date())return null;
+  const now=new Date(); let age=now.getFullYear()-y; if(now.getMonth()<m-1||(now.getMonth()===m-1&&now.getDate()<d))age--; return age>=0?age:null;
+}
 function normalizeSensusRow(x){
   const place=String(x?.['TEMPAT LAHIR']??'').trim();const birth=String(x?.['TGL LAHIR']??'').trim();return {id:String(x?.id??''),noKeluarga:String(x?.['No. Keluarga']??'').trim(),no:Number(x?.['NO. JAMAAH']??0),kodeKelg:String(x?.['KODE KELG.']??'').trim(),pref:String(x?.['PREF']??'').trim(),nama:String(x?.['NAMA']??'').trim(),lp:String(x?.['L/P']??'').trim().toUpperCase(),tempatLahir:place,tanggalLahir:birth,ttl:[place,birth].filter(Boolean).join(', '),umur:Number(x?.['UMUR']??0)||0,statusBk:String(x?.['B/K/J/D']??'').trim().toUpperCase(),status:String(x?.['STATUS']??'').trim(),alamat:String(x?.['ALAMAT RUMAH']??'').trim(),telepon:String(x?.['TELEPON']??'').trim(),ket:String(x?.['KET']??'').trim()};
 }
@@ -7912,7 +7921,7 @@ async function loadSensus(isInitial=false){
   try{
     if(!window.samaliDb)throw new Error('Koneksi Supabase belum siap.');
     let data,error;
-    ({data,error}=await window.samaliDb.from('sensus_jamaah').select('*').order('NO. JAMAAH',{ascending:true}).order('id',{ascending:true}));
+    ({data,error}=await window.samaliDb.from('sensus_jamaah').select('*'));
     // Jika urutan gagal karena perbedaan schema lama, ambil semua kolom tanpa order.
     if(error){
       console.warn('Query Sensus dengan order gagal, mencoba query dasar:',error);
@@ -7939,7 +7948,7 @@ async function loadSensus(isInitial=false){
       }catch(fallbackError){console.warn('Sumber data lama juga tidak dapat dibaca:',fallbackError)}
       throw error;
     }
-    sensusItems=Array.isArray(data)?data.map(normalizeSensusRow):[];
+    sensusItems=Array.isArray(data)?data.map(normalizeSensusRow).sort((a,b)=>(Number(a.no)||Number.MAX_SAFE_INTEGER)-(Number(b.no)||Number.MAX_SAFE_INTEGER)||String(a.id).localeCompare(String(b.id),undefined,{numeric:true})):[];
     if(!sensusItems.length){
       // Baca sumber lama hanya sebagai fallback; jangan menulis/migrasikan data dari halaman pengurus.
       try{
@@ -7958,6 +7967,7 @@ async function loadSensus(isInitial=false){
         }
       }catch(fallbackError){console.warn('Fallback sensus belum tersedia:',fallbackError)}
     }
+    sensusItems.sort((a,b)=>(Number(a.no)||Number.MAX_SAFE_INTEGER)-(Number(b.no)||Number.MAX_SAFE_INTEGER)||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
     pengurusSensusFingerprint=stableDataFingerprint(sensusItems);
     renderSensus();renderAgeSummary();renderPortalSummary();
     if(!sensusItems.length) console.warn('Supabase Sensus mengembalikan 0 baris. Periksa tabel/RLS.');
@@ -7974,9 +7984,10 @@ async function loadMusyawarah(isInitial=false){
   if(isInitial&&list)list.innerHTML='<div class="panel rounded-2xl border p-6 text-center text-sm text-slate-500">Memuat data...</div>';
   try{
     if(!window.samaliDb)throw new Error('Database belum siap.');
-    const {data,error}=await window.samaliDb.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
+    let {data,error}=await window.samaliDb.from('hasil_musyawarah').select('*').order('tanggal',{ascending:false}).order('id',{ascending:false});
+    if(error){console.warn('Urutan hasil musyawarah gagal, mencoba query dasar:',error);({data,error}=await window.samaliDb.from('hasil_musyawarah').select('*'));}
     if(error)throw error;
-    const normalized=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.tanggal??x.date??''),title:String(x.judul??x.title??'Hasil Musyawarah'),content:String(x.isi??x.content??'')}));
+    const normalized=(data||[]).map((x,i)=>({id:String(x.id??i+1),date:normalizeDateKey(x.tanggal??x.date??''),title:String(x.judul??x.title??'Hasil Musyawarah'),content:String(x.isi??x.content??'')})).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id),undefined,{numeric:true}));
     const fp=stableDataFingerprint(normalized);
     if(!isInitial&&fp===pengurusMusyawarahFingerprint)return false;
     pengurusMusyawarahFingerprint=fp;musyawarahItems=normalized;
